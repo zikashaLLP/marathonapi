@@ -1,17 +1,18 @@
-const axios = require('axios');
-const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const Participant = require('../models/Participant');
-const { PHONEPE_CONFIG, generateXVerify, verifyCallback } = require('../config/phonepe');
-const { HTTP_STATUS } = require('../utils/constants');
+const { getPhonePeClient, PHONEPE_CONFIG } = require('../config/phonepe');
+const { StandardCheckoutPayRequest } = require('pg-sdk-node');
 const logger = require('../utils/logger');
 require('dotenv').config();
 
-// Create payment order
+// Create payment order using PhonePe SDK
 const createPaymentOrder = async (participantId, userId, amount) => {
   try {
     const participant = await Participant.findByPk(participantId, {
-      include: [{ model: require('../models/Marathon'), as: 'Marathon' }]
+      include: [
+        { model: require('../models/Marathon'), as: 'Marathon' },
+        { model: require('../models/ParticipantDetails'), as: 'ParticipantDetails' }
+      ]
     });
     
     if (!participant) {
@@ -27,72 +28,64 @@ const createPaymentOrder = async (participantId, userId, amount) => {
     }
     
     // Generate order ID
-    const orderId = `ORDER_${Date.now()}_${participantId}`;
+    const merchantOrderId = `ORDER_${Date.now()}_${participantId}`;
     
     // Create payment record
     const payment = await Payment.create({
-      Order_Id: orderId,
+      Order_Id: merchantOrderId,
       Participant_Id: participantId,
       User_Id: userId,
       Amount: amount,
       Payment_Status: 'Pending'
     });
     
-    // Prepare PhonePe payment request
-    const merchantTransactionId = orderId;
-    const callbackUrl = `${process.env.BASE_URL}/api/payment/callback`;
+    // Prepare redirect URL - this is where PhonePe redirects the user after payment
+    // This backend endpoint will verify payment, update database, and redirect to frontend
+    const redirectUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/payment/verify?merchantOrderId=${merchantOrderId}`;
     
-    const payload = {
-      merchantId: PHONEPE_CONFIG.merchantId,
-      merchantTransactionId: merchantTransactionId,
-      merchantUserId: userId.toString(),
-      amount: amount * 100, // Amount in paise
-      redirectUrl: callbackUrl,
-      redirectMode: 'REDIRECT',
-      callbackUrl: callbackUrl,
-      mobileNumber: participant.ParticipantDetails?.Contact_Number || '',
-      paymentInstrument: {
-        type: 'PAY_PAGE'
-      }
-    };
+    // Build payment request using PhonePe SDK
+    const paymentRequest = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(Math.round(amount * 100)) // Amount in paise
+      .redirectUrl(redirectUrl)
+      .build();
     
-    const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-    const xVerify = generateXVerify(payload);
+    // Get PhonePe client and initiate payment
+    const client = getPhonePeClient();
+    const response = await client.pay(paymentRequest);
     
-    // Make payment request to PhonePe
-    const response = await axios.post(
-      `${PHONEPE_CONFIG.baseUrl}/pg/v1/pay`,
-      { request: base64Payload },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-VERIFY': xVerify,
-          'Accept': 'application/json'
-        }
-      }
-    );
-    
-    if (response.data.success) {
+    if (response && response.redirectUrl) {
+      logger.info('PhonePe payment initiated successfully:', {
+        merchantOrderId,
+        amount: paymentRequest.amount,
+        paymentId: payment.Id
+      });
+      
       return {
         success: true,
-        paymentUrl: response.data.data.instrumentResponse.redirectInfo.url,
-        orderId: orderId,
+        paymentUrl: response.redirectUrl,
+        orderId: merchantOrderId,
         paymentId: payment.Id
       };
-    } else {
-      throw new Error('Failed to create payment order');
     }
+    
+    throw new Error('Failed to get payment URL from PhonePe');
   } catch (error) {
-    logger.error('Error in createPaymentOrder:', error);
+    logger.error('Error in createPaymentOrder:', {
+      message: error.message,
+      stack: error.stack
+    });
+    
     throw error;
   }
 };
 
-// Verify payment callback
-const verifyPaymentCallback = async (transactionId, orderId, xVerify) => {
+// Verify payment (called from redirect URL)
+const verifyPayment = async (merchantOrderId) => {
   try {
+    // Find payment record
     const payment = await Payment.findOne({
-      where: { Order_Id: orderId },
+      where: { Order_Id: merchantOrderId },
       include: [{ model: Participant, as: 'Participant' }]
     });
     
@@ -100,38 +93,24 @@ const verifyPaymentCallback = async (transactionId, orderId, xVerify) => {
       throw new Error('Payment not found');
     }
     
-    // Verify callback signature
-    const payload = {
-      merchantId: PHONEPE_CONFIG.merchantId,
-      merchantTransactionId: orderId,
-      transactionId: transactionId
-    };
+    // Get latest status from PhonePe
+    const client = getPhonePeClient();
+    const statusResponse = await client.getOrderStatus(merchantOrderId);
     
-    if (!verifyCallback(xVerify, payload)) {
-      throw new Error('Invalid callback signature');
-    }
-    
-    // Check payment status with PhonePe
-    const statusUrl = `${PHONEPE_CONFIG.baseUrl}/pg/v1/status/${PHONEPE_CONFIG.merchantId}/${orderId}`;
-    const xVerifyStatus = generateXVerify({ merchantId: PHONEPE_CONFIG.merchantId, merchantTransactionId: orderId });
-    
-    const statusResponse = await axios.get(statusUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-VERIFY': xVerifyStatus,
-        'X-MERCHANT-ID': PHONEPE_CONFIG.merchantId,
-        'Accept': 'application/json'
-      }
-    });
-    
-    const paymentStatus = statusResponse.data.data.state === 'COMPLETED' ? 'Success' : 'Failed';
+    // Extract status from PhonePe response
+    const state = statusResponse.state;
+    const paymentStatus = state === 'COMPLETED' ? 'Success' : 
+                         state === 'FAILED' ? 'Failed' : 'Pending';
     
     // Update payment record
-    payment.Transaction_Id = transactionId;
     payment.Payment_Status = paymentStatus;
+    payment.Updated_At = new Date();
+    if (statusResponse.transactionId) {
+      payment.Transaction_Id = statusResponse.transactionId;
+    }
     await payment.save();
     
-    // Update participant payment status
+    // Update participant payment status if successful
     if (paymentStatus === 'Success' && payment.Participant) {
       payment.Participant.Is_Payment_Completed = true;
       await payment.Participant.save();
@@ -140,39 +119,21 @@ const verifyPaymentCallback = async (transactionId, orderId, xVerify) => {
     return {
       success: paymentStatus === 'Success',
       paymentStatus,
-      payment
+      state: state,
+      payment,
+      orderId: merchantOrderId,
+      transactionId: payment.Transaction_Id
     };
   } catch (error) {
-    logger.error('Error in verifyPaymentCallback:', error);
-    throw error;
-  }
-};
-
-// Get payment status
-const getPaymentStatus = async (orderId, userId) => {
-  try {
-    const payment = await Payment.findOne({
-      where: { Order_Id: orderId, User_Id: userId },
-      include: [
-        { model: Participant, as: 'Participant' },
-        { model: require('../models/Marathon'), as: 'Marathon', through: { model: Participant } }
-      ]
+    logger.error('Error in verifyPayment:', {
+      message: error.message,
+      stack: error.stack
     });
-    
-    if (!payment) {
-      throw new Error('Payment not found');
-    }
-    
-    return payment;
-  } catch (error) {
-    logger.error('Error in getPaymentStatus:', error);
     throw error;
   }
 };
 
 module.exports = {
   createPaymentOrder,
-  verifyPaymentCallback,
-  getPaymentStatus
+  verifyPayment
 };
-

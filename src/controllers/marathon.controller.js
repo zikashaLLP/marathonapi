@@ -6,6 +6,12 @@ const createMarathon = async (req, res, next) => {
   try {
     const marathonData = req.body;
     
+    // Handle route map file upload
+    if (req.file) {
+      // Save the file path relative to public folder
+      marathonData.Route_Map = `/public/uploads/route-maps/${req.file.filename}`;
+    }
+    
     const marathon = await marathonService.createMarathon(marathonData);
     
     res.status(HTTP_STATUS.CREATED).json({
@@ -66,6 +72,26 @@ const updateMarathon = async (req, res, next) => {
   try {
     const { marathonId } = req.params;
     const updateData = req.body;
+    
+    // Handle route map file upload
+    if (req.file) {
+      // Get existing marathon to delete old file if exists
+      const existingMarathon = await marathonService.getMarathonById(parseInt(marathonId));
+      
+      // Delete old file if exists
+      if (existingMarathon && existingMarathon.Route_Map) {
+        const fs = require('fs');
+        const path = require('path');
+        const oldFilePath = path.join(__dirname, '../../', existingMarathon.Route_Map);
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+          logger.info('Deleted old route map file:', oldFilePath);
+        }
+      }
+      
+      // Save the new file path relative to public folder
+      updateData.Route_Map = `/public/uploads/route-maps/${req.file.filename}`;
+    }
     
     const marathon = await marathonService.updateMarathon(
       parseInt(marathonId),

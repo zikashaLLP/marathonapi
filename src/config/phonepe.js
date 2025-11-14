@@ -1,36 +1,39 @@
 require('dotenv').config();
-const crypto = require('crypto');
+const { StandardCheckoutClient, Env } = require('pg-sdk-node');
 
+// PhonePe SDK Configuration
 const PHONEPE_CONFIG = {
-  merchantId: process.env.PHONEPE_MERCHANT_ID,
-  saltKey: process.env.PHONEPE_SALT_KEY,
-  saltIndex: process.env.PHONEPE_SALT_INDEX || 1,
-  environment: process.env.PHONEPE_ENVIRONMENT || 'sandbox',
-  baseUrl: process.env.PHONEPE_ENVIRONMENT === 'production' 
-    ? 'https://api.phonepe.com/apis/hermes'
-    : 'https://api-preprod.phonepe.com/apis/pg-simulator'
+  clientId: process.env.PHONEPE_CLIENT_ID,
+  clientSecret: process.env.PHONEPE_CLIENT_SECRET,
+  clientVersion: parseInt(process.env.PHONEPE_CLIENT_VERSION || '1'),
+  environment: process.env.PHONEPE_ENVIRONMENT === 'production' ? Env.PRODUCTION : Env.SANDBOX,
+  // Callback validation credentials (optional but recommended for security)
+  // These are configured in your PhonePe dashboard for callback authentication
+  callbackUsername: process.env.PHONEPE_CALLBACK_USERNAME,
+  callbackPassword: process.env.PHONEPE_CALLBACK_PASSWORD
 };
 
-// Generate X-VERIFY header for PhonePe
-const generateXVerify = (payload) => {
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-  const stringToHash = base64Payload + PHONEPE_CONFIG.baseUrl + PHONEPE_CONFIG.saltKey;
-  const sha256Hash = crypto.createHash('sha256').update(stringToHash).digest('hex');
-  return sha256Hash + '###' + PHONEPE_CONFIG.saltIndex;
-};
+// Initialize PhonePe SDK Client
+let phonepeClient = null;
 
-// Verify callback signature
-const verifyCallback = (xVerify, payload) => {
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-  const stringToHash = base64Payload + PHONEPE_CONFIG.saltKey;
-  const sha256Hash = crypto.createHash('sha256').update(stringToHash).digest('hex');
-  const expectedXVerify = sha256Hash + '###' + PHONEPE_CONFIG.saltIndex;
-  return xVerify === expectedXVerify;
+const getPhonePeClient = () => {
+  if (!phonepeClient) {
+    if (!PHONEPE_CONFIG.clientId || !PHONEPE_CONFIG.clientSecret) {
+      throw new Error('PhonePe credentials (CLIENT_ID and CLIENT_SECRET) not configured');
+    }
+    
+    phonepeClient = StandardCheckoutClient.getInstance(
+      PHONEPE_CONFIG.clientId,
+      PHONEPE_CONFIG.clientSecret,
+      PHONEPE_CONFIG.clientVersion,
+      PHONEPE_CONFIG.environment
+    );
+  }
+  
+  return phonepeClient;
 };
 
 module.exports = {
   PHONEPE_CONFIG,
-  generateXVerify,
-  verifyCallback
+  getPhonePeClient
 };
-

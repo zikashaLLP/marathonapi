@@ -24,66 +24,41 @@ const createPayment = async (req, res, next) => {
   }
 };
 
-const paymentCallback = async (req, res, next) => {
+// Verify payment (used as redirect URL from PhonePe)
+const verifyPayment = async (req, res, next) => {
   try {
-    // PhonePe sends callback as POST with base64 encoded response
-    const { response } = req.body;
-    const xVerify = req.headers['x-verify'];
+    const { merchantOrderId } = req.query;
     
-    if (!response || !xVerify) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: 'Invalid callback data'
-      });
+    if (!merchantOrderId) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).send('MerchantOrderId is required');
     }
     
-    // Decode the response
-    const decodedResponse = Buffer.from(response, 'base64').toString('utf-8');
-    const callbackData = JSON.parse(decodedResponse);
+    // Verify payment status from PhonePe and update database
+    const result = await paymentService.verifyPayment(merchantOrderId);
     
-    const { transactionId, merchantTransactionId } = callbackData.data;
-    const orderId = merchantTransactionId;
+    const status = result.state;
+    const paymentStatus = result.paymentStatus;
     
-    const result = await paymentService.verifyPaymentCallback(
-      transactionId,
-      orderId,
-      xVerify
-    );
+    // Build redirect URLs
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const successUrl = `${frontendUrl}/payment/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`;
+    const failureUrl = `${frontendUrl}/payment/failed?merchantOrderId=${encodeURIComponent(merchantOrderId)}`;
     
-    if (result.success) {
-      // Redirect to success page
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?orderId=${orderId}`);
+    // Redirect based on status
+    if (status === 'COMPLETED' || paymentStatus === 'Success') {
+      return res.redirect(successUrl);
     } else {
-      // Redirect to failure page
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?orderId=${orderId}`);
+      return res.redirect(failureUrl);
     }
   } catch (error) {
-    logger.error('Error in paymentCallback controller:', error);
-    // Even on error, redirect to failure page
-    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed`);
-  }
-};
-
-const getPaymentStatus = async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    const { orderId } = req.params;
-    
-    const payment = await paymentService.getPaymentStatus(orderId, userId);
-    
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      data: payment
-    });
-  } catch (error) {
-    logger.error('Error in getPaymentStatus controller:', error);
-    next(error);
+    logger.error('Error in verifyPayment controller:', error);
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    return res.redirect(`${frontendUrl}/payment/failed?error=verification_failed`);
   }
 };
 
 module.exports = {
   createPayment,
-  paymentCallback,
-  getPaymentStatus
+  verifyPayment
 };
 

@@ -58,7 +58,10 @@ Update your `.env` file with the following:
 ```env
 WHATSAPP_PHONE_NUMBER_ID=123456789012345
 WHATSAPP_ACCESS_TOKEN=EAABwzLix...your_token_here
-WHATSAPP_API_VERSION=v18.0
+WHATSAPP_API_VERSION=v22.0
+WHATSAPP_TEMPLATE_NAME=hello_world
+WHATSAPP_TEMPLATE_LANGUAGE=en_US
+WHATSAPP_TEMPLATE_HAS_PARAMS=false
 ```
 
 ### 6. Test the Integration
@@ -76,17 +79,26 @@ WHATSAPP_API_VERSION=v18.0
 
 ## API Version
 
-The default API version is `v18.0`. You can check the latest version at:
+The default API version is `v22.0`. You can check the latest version at:
 - [Meta Graph API Changelog](https://developers.facebook.com/docs/graph-api/changelog)
 
 Update `WHATSAPP_API_VERSION` in `.env` if you need a different version.
 
 ## Message Format
 
-The OTP message is sent in the following format:
-```
-Your OTP for Marathon Registration is: *123456*. Valid for 10 minutes.
-```
+The OTP is sent using WhatsApp message templates. By default, it uses the `hello_world` template for testing.
+
+**For Production:**
+1. Create a custom OTP template in Meta Business Suite
+2. Get it approved by Meta
+3. Update `.env`:
+   ```env
+   WHATSAPP_TEMPLATE_NAME=your_otp_template_name
+   WHATSAPP_TEMPLATE_HAS_PARAMS=true
+   ```
+
+**Template with OTP Parameter:**
+If your template includes a parameter for the OTP value, set `WHATSAPP_TEMPLATE_HAS_PARAMS=true` and the OTP will be passed as a template parameter.
 
 ## Troubleshooting
 

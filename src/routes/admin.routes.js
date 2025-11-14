@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
-const { authenticate } = require('../middleware/auth.middleware');
 const { isAdmin } = require('../middleware/rbac.middleware');
 
 /**
@@ -35,7 +34,7 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *       200:
  *         description: List of users
  */
-router.get('/users', authenticate, isAdmin, adminController.getAllUsers);
+router.get('/users', isAdmin, adminController.getAllUsers);
 
 /**
  * @swagger
@@ -85,7 +84,7 @@ router.get('/users', authenticate, isAdmin, adminController.getAllUsers);
  *       200:
  *         description: List of participants
  */
-router.get('/participants', authenticate, isAdmin, adminController.getMarathonParticipants);
+router.get('/participants', isAdmin, adminController.getMarathonParticipants);
 
 /**
  * @swagger
@@ -104,7 +103,7 @@ router.get('/participants', authenticate, isAdmin, adminController.getMarathonPa
  *       200:
  *         description: T-shirt size report
  */
-router.get('/reports/tshirt-size', authenticate, isAdmin, adminController.getTshirtSizeReport);
+router.get('/reports/tshirt-size', isAdmin, adminController.getTshirtSizeReport);
 
 /**
  * @swagger
@@ -123,7 +122,7 @@ router.get('/reports/tshirt-size', authenticate, isAdmin, adminController.getTsh
  *       200:
  *         description: Payment statistics
  */
-router.get('/reports/payment-statistics', authenticate, isAdmin, adminController.getPaymentStatistics);
+router.get('/reports/payment-statistics', isAdmin, adminController.getPaymentStatistics);
 
 module.exports = router;
 

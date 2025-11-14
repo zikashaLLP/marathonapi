@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
@@ -29,6 +30,9 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from public folder
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {

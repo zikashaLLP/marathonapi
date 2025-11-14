@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
-const { createPaymentValidator, paymentStatusValidator } = require('../validators/payment.validator');
+const { createPaymentValidator } = require('../validators/payment.validator');
 const { validate } = require('../middleware/validator.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
@@ -41,50 +41,24 @@ router.post(
 
 /**
  * @swagger
- * /api/payment/callback:
- *   post:
- *     summary: Payment callback from PhonePe
- *     tags: [Payment]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               response:
- *                 type: string
- *     responses:
- *       302:
- *         description: Redirect to success/failure page
- */
-router.post('/callback', paymentController.paymentCallback);
-
-/**
- * @swagger
- * /api/payment/status/{orderId}:
+ * /api/payment/verify:
  *   get:
- *     summary: Get payment status
+ *     summary: Verify payment (PhonePe redirect endpoint)
  *     tags: [Payment]
- *     security:
- *       - bearerAuth: []
+ *     description: PhonePe redirects user here after payment. This endpoint verifies payment status, updates database, and redirects to frontend.
  *     parameters:
- *       - in: path
- *         name: orderId
+ *       - in: query
+ *         name: merchantOrderId
  *         required: true
  *         schema:
  *           type: string
  *     responses:
- *       200:
- *         description: Payment status
+ *       302:
+ *         description: Redirect to frontend success/failure page
+ *       400:
+ *         description: Missing merchantOrderId
  */
-router.get(
-  '/status/:orderId',
-  authenticate,
-  paymentStatusValidator,
-  validate,
-  paymentController.getPaymentStatus
-);
+router.get('/verify', paymentController.verifyPayment);
 
 module.exports = router;
 

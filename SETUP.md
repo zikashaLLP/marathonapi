@@ -64,14 +64,27 @@ OTP_LENGTH=6
 # Get these from Meta Business Suite: https://business.facebook.com/
 WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 WHATSAPP_ACCESS_TOKEN=your_access_token
-WHATSAPP_API_VERSION=v18.0
+WHATSAPP_API_VERSION=v22.0
 WHATSAPP_BUSINESS_ACCOUNT_ID=
+# Message Type Configuration
+# Set to 'false' to send plain text messages (only works if user messaged you within 24 hours)
+# Set to 'true' or leave empty to use template messages (required for initial messages)
+WHATSAPP_USE_TEMPLATE=true
+# Template Configuration (only used if WHATSAPP_USE_TEMPLATE=true)
+WHATSAPP_TEMPLATE_NAME=hello_world
+WHATSAPP_TEMPLATE_LANGUAGE=en_US
+# Set to 'true' if your template has parameters for OTP
+WHATSAPP_TEMPLATE_HAS_PARAMS=false
 
-# PhonePe Payment Gateway Configuration
-PHONEPE_MERCHANT_ID=your_merchant_id
-PHONEPE_SALT_KEY=your_salt_key
-PHONEPE_SALT_INDEX=1
+# PhonePe Payment Gateway Configuration (using SDK)
+# Get these from PhonePe Merchant Dashboard: https://developer.phonepe.com/
+PHONEPE_CLIENT_ID=your_client_id
+PHONEPE_CLIENT_SECRET=your_client_secret
+PHONEPE_CLIENT_VERSION=1
 PHONEPE_ENVIRONMENT=sandbox
+# Callback validation credentials (configured in PhonePe dashboard)
+PHONEPE_CALLBACK_USERNAME=your_callback_username
+PHONEPE_CALLBACK_PASSWORD=your_callback_password
 
 # Base URL
 BASE_URL=http://localhost:3000

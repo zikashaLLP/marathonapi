@@ -15,23 +15,41 @@ const authenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Check if user exists and is verified
-    const user = await User.findByPk(decoded.userId);
-    
-    if (!user || !user.Is_Verified) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
-        success: false,
-        message: 'Invalid token or user not verified.'
-      });
+    // If admin role, skip user verification (userId = 0)
+    if (decoded.role === 'admin' && decoded.userId === 0) {
+      req.user = {
+        userId: 0,
+        role: 'admin'
+      };
+      return next();
     }
-
-    req.user = {
-      userId: user.Id,
-      mobileNumber: user.Mobile_Number,
-      isVerified: user.Is_Verified
-    };
     
-    next();
+    // For user role, verify user exists and is verified
+    if (decoded.role === 'user') {
+      const user = await User.findByPk(decoded.userId);
+      
+      if (!user || !user.Is_Verified) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          message: 'Invalid token or user not verified.'
+        });
+      }
+
+      req.user = {
+        userId: user.Id,
+        mobileNumber: user.Mobile_Number,
+        isVerified: user.Is_Verified,
+        role: 'user'
+      };
+      
+      return next();
+    }
+    
+    // Invalid role
+    return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+      success: false,
+      message: 'Invalid token role.'
+    });
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({

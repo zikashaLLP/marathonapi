@@ -5,6 +5,7 @@ const { createMarathonValidator, updateMarathonValidator } = require('../validat
 const { validate } = require('../middleware/validator.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { isAdmin } = require('../middleware/rbac.middleware');
+const { handleUpload } = require('../middleware/upload.middleware');
 
 /**
  * @swagger
@@ -33,7 +34,7 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -48,9 +49,29 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *                 format: date
  *               Reporting_Time:
  *                 type: string
+ *                 format: time
+ *                 example: "06:00"
  *               Run_Start_Time:
  *                 type: string
+ *                 format: time
+ *                 example: "07:00"
  *               Location:
+ *                 type: string
+ *               Terms_Conditions:
+ *                 type: string
+ *               How_To_Apply:
+ *                 type: string
+ *               Eligibility_Criteria:
+ *                 type: string
+ *               Rules_Regulations:
+ *                 type: string
+ *               Runner_Amenities:
+ *                 type: string
+ *               routeMap:
+ *                 type: string
+ *                 format: binary
+ *                 description: Route map image file (optional, accepts image files only, max 5MB)
+ *               Price_List:
  *                 type: string
  *               Fees_Amount:
  *                 type: number
@@ -63,6 +84,7 @@ router.post(
   '/',
   authenticate,
   isAdmin,
+  handleUpload,
   createMarathonValidator,
   validate,
   marathonController.createMarathon
@@ -94,6 +116,48 @@ router.post(
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               Name:
+ *                 type: string
+ *               Track_Length:
+ *                 type: string
+ *               Date:
+ *                 type: string
+ *                 format: date
+ *               Reporting_Time:
+ *                 type: string
+ *                 format: time
+ *                 example: "06:00"
+ *               Run_Start_Time:
+ *                 type: string
+ *                 format: time
+ *                 example: "07:00"
+ *               Location:
+ *                 type: string
+ *               Terms_Conditions:
+ *                 type: string
+ *               How_To_Apply:
+ *                 type: string
+ *               Eligibility_Criteria:
+ *                 type: string
+ *               Rules_Regulations:
+ *                 type: string
+ *               Runner_Amenities:
+ *                 type: string
+ *               routeMap:
+ *                 type: string
+ *                 format: binary
+ *                 description: Route map image file (optional, accepts image files only, max 5MB)
+ *               Price_List:
+ *                 type: string
+ *               Fees_Amount:
+ *                 type: number
  *     responses:
  *       200:
  *         description: Marathon updated successfully
@@ -117,6 +181,7 @@ router.put(
   '/:marathonId',
   authenticate,
   isAdmin,
+  handleUpload,
   updateMarathonValidator,
   validate,
   marathonController.updateMarathon

@@ -23,8 +23,22 @@ const verifyOTPValidator = [
     .withMessage('OTP must be numeric')
 ];
 
+const adminLoginValidator = [
+  body('mobileNumber')
+    .notEmpty()
+    .withMessage('Mobile number is required')
+    .isMobilePhone('en-IN')
+    .withMessage('Invalid mobile number format'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+    .isLength({ min: 1 })
+    .withMessage('Password cannot be empty')
+];
+
 module.exports = {
   sendOTPValidator,
-  verifyOTPValidator
+  verifyOTPValidator,
+  adminLoginValidator
 };
 
