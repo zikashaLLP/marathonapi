@@ -30,7 +30,10 @@ const verifyPayment = async (req, res, next) => {
     const { merchantOrderId } = req.query;
     
     if (!merchantOrderId) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).send('MerchantOrderId is required');
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: 'MerchantOrderId is required'
+      });
     }
     
     // Verify payment status from PhonePe and update database
@@ -39,21 +42,25 @@ const verifyPayment = async (req, res, next) => {
     const status = result.state;
     const paymentStatus = result.paymentStatus;
     
-    // Build redirect URLs
-    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-    const successUrl = `${frontendUrl}/payment/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`;
-    const failureUrl = `${frontendUrl}/payment/failed?merchantOrderId=${encodeURIComponent(merchantOrderId)}`;
-    
-    // Redirect based on status
-    if (status === 'COMPLETED' || paymentStatus === 'Success') {
-      return res.redirect(successUrl);
-    } else {
-      return res.redirect(failureUrl);
-    }
+    // Return JSON response instead of redirecting
+    return res.status(HTTP_STATUS.OK).json({
+      success: paymentStatus === 'Success',
+      message: paymentStatus === 'Success' ? 'Payment successful' : 'Payment failed',
+      data: {
+        merchantOrderId: result.orderId,
+        paymentStatus: paymentStatus,
+        state: status,
+        transactionId: result.transactionId,
+        payment: result.payment
+      }
+    });
   } catch (error) {
     logger.error('Error in verifyPayment controller:', error);
-    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-    return res.redirect(`${frontendUrl}/payment/failed?error=verification_failed`);
+    return res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Payment verification failed',
+      error: error.message
+    });
   }
 };
 

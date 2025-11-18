@@ -41,7 +41,7 @@ const createPaymentOrder = async (participantId, userId, amount) => {
     
     // Prepare redirect URL - this is where PhonePe redirects the user after payment
     // This backend endpoint will verify payment, update database, and redirect to frontend
-    const redirectUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/api/payment/verify?merchantOrderId=${merchantOrderId}`;
+    const redirectUrl = `${process.env.FRONTEND_URL }?merchantOrderId=${merchantOrderId}`;
     
     // Build payment request using PhonePe SDK
     const paymentRequest = StandardCheckoutPayRequest.builder()
@@ -105,8 +105,8 @@ const verifyPayment = async (merchantOrderId) => {
     // Update payment record
     payment.Payment_Status = paymentStatus;
     payment.Updated_At = new Date();
-    if (statusResponse.transactionId) {
-      payment.Transaction_Id = statusResponse.transactionId;
+    if (statusResponse.paymentDetails.length > 0) {
+      payment.Transaction_Id = statusResponse.paymentDetails[0].transactionId;
     }
     await payment.save();
     
