@@ -235,6 +235,12 @@ If you need to add the OTP column to existing Users table:
 ALTER TABLE Users ADD COLUMN OTP VARCHAR(10) NULL AFTER Mobile_Number;
 ```
 
+To add the new `Description` field to an existing `Marathon` table without dropping data:
+
+```sql
+ALTER TABLE Marathon ADD COLUMN Description TEXT AFTER Name;
+```
+
 ## Troubleshooting
 
 ### Database Connection Issues

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS Users (
 CREATE TABLE IF NOT EXISTS Marathon (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
+    Description TEXT,
     Track_Length VARCHAR(50),
     Date DATE,
     Reporting_Time TIME,
@@ -113,6 +114,7 @@ CREATE TABLE IF NOT EXISTS Result (
     Race_Time VARCHAR(50),
     Category ENUM('Open','Defence'),
     Position ENUM('First','Second','Third'),
+    Image VARCHAR(255),
     Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
     Updated_At DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

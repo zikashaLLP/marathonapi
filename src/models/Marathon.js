@@ -11,6 +11,10 @@ const Marathon = sequelize.define('Marathon', {
     type: DataTypes.STRING(255),
     allowNull: false
   },
+  Description: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   Track_Length: {
     type: DataTypes.STRING(50),
     allowNull: true

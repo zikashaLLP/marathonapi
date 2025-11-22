@@ -3,10 +3,39 @@ const generateOTP = (length = 6) => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Generate BIB Number
-const generateBIBNumber = (marathonId, participantId) => {
-  const timestamp = Date.now().toString().slice(-6);
-  return `MAR${marathonId.toString().padStart(3, '0')}${participantId.toString().padStart(4, '0')}${timestamp}`;
+// Generate BIB Number - starts from 10001 and increments
+const generateBIBNumber = async (transaction = null) => {
+  const Participant = require('../models/Participant');
+  const { sequelize } = require('../config/database');
+  const { Op } = require('sequelize');
+  
+  // Get all BIB numbers that are numeric and find the maximum
+  const participants = await Participant.findAll({
+    where: {
+      BIB_Number: {
+        [Op.not]: null,
+        [Op.regexp]: '^[0-9]+$'
+      }
+    },
+    attributes: ['BIB_Number'],
+    transaction
+  });
+  
+  let nextBibNumber = 10001; // Starting number
+  
+  if (participants && participants.length > 0) {
+    // Extract numeric BIB numbers and find max
+    const bibNumbers = participants
+      .map(p => parseInt(p.BIB_Number))
+      .filter(num => !isNaN(num) && num >= 10001);
+    
+    if (bibNumbers.length > 0) {
+      const maxBib = Math.max(...bibNumbers);
+      nextBibNumber = maxBib + 1;
+    }
+  }
+  
+  return nextBibNumber.toString();
 };
 
 // Format phone number

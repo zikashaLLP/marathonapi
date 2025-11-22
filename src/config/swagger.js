@@ -1,6 +1,12 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
 
+const baseServerUrl = process.env.BASE_URL || 'http://localhost:3000';
+const additionalServers = (process.env.SWAGGER_SERVERS || '')
+  .split(',')
+  .map(url => url.trim())
+  .filter(url => url && url !== baseServerUrl);
+
 const options = {
   definition: {
     openapi: '3.0.0',
@@ -15,9 +21,13 @@ const options = {
     },
     servers: [
       {
-        url: process.env.BASE_URL || 'http://localhost:3000',
+        url: baseServerUrl,
         description: 'Development server'
-      }
+      },
+      ...additionalServers.map((url, index) => ({
+        url,
+        description: index === 0 ? 'Public server' : `Public server ${index + 1}`
+      }))
     ],
     components: {
       securitySchemes: {

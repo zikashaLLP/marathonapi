@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const Participant = require('./Participant');
-const User = require('./User');
 
 const Payment = sequelize.define('Payment', {
   Id: {
@@ -15,22 +14,13 @@ const Payment = sequelize.define('Payment', {
   },
   Order_Id: {
     type: DataTypes.STRING(255),
-    allowNull: true,
-    unique: true
+    allowNull: true
   },
   Participant_Id: {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
       model: 'Participant',
-      key: 'Id'
-    }
-  },
-  User_Id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'Users',
       key: 'Id'
     }
   },
@@ -59,10 +49,8 @@ const Payment = sequelize.define('Payment', {
 
 // Define associations
 Payment.belongsTo(Participant, { foreignKey: 'Participant_Id', as: 'Participant' });
-Payment.belongsTo(User, { foreignKey: 'User_Id', as: 'User' });
 
 Participant.hasMany(Payment, { foreignKey: 'Participant_Id', as: 'Payments' });
-User.hasMany(Payment, { foreignKey: 'User_Id', as: 'Payments' });
 
 module.exports = Payment;
 

@@ -42,6 +42,8 @@ const { handleUpload } = require('../middleware/upload.middleware');
  *             properties:
  *               Name:
  *                 type: string
+ *               Description:
+ *                 type: string
  *               Track_Length:
  *                 type: string
  *               Date:
@@ -124,6 +126,8 @@ router.post(
  *             type: object
  *             properties:
  *               Name:
+ *                 type: string
+ *               Description:
  *                 type: string
  *               Track_Length:
  *                 type: string

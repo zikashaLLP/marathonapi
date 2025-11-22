@@ -5,6 +5,7 @@ const { uploadResultValidator, bulkUploadResultValidator } = require('../validat
 const { validate } = require('../middleware/validator.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { isAdmin } = require('../middleware/rbac.middleware');
+const { handleResultImageUpload } = require('../middleware/upload.middleware');
 
 /**
  * @swagger
@@ -43,7 +44,7 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -66,6 +67,10 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *               Position:
  *                 type: string
  *                 enum: [First, Second, Third]
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Result image file (optional, accepts image files only, max 5MB)
  *     responses:
  *       201:
  *         description: Result uploaded successfully
@@ -75,6 +80,7 @@ router.post(
   '/',
   authenticate,
   isAdmin,
+  handleResultImageUpload,
   uploadResultValidator,
   validate,
   resultController.uploadResult
@@ -140,6 +146,34 @@ router.post(
  *         required: true
  *         schema:
  *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               Marathon_Id:
+ *                 type: integer
+ *               BIB_Number:
+ *                 type: string
+ *               Name:
+ *                 type: string
+ *               Gender:
+ *                 type: string
+ *                 enum: [Male, Female]
+ *               Race_Time:
+ *                 type: string
+ *               Category:
+ *                 type: string
+ *                 enum: [Open, Defence]
+ *               Position:
+ *                 type: string
+ *                 enum: [First, Second, Third]
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Result image file (optional, accepts image files only, max 5MB)
  *     responses:
  *       200:
  *         description: Result updated successfully
@@ -159,7 +193,13 @@ router.post(
  *         description: Result deleted successfully
  */
 router.get('/:resultId', resultController.getResult);
-router.put('/:resultId', authenticate, isAdmin, resultController.updateResult);
+router.put(
+  '/:resultId',
+  authenticate,
+  isAdmin,
+  handleResultImageUpload,
+  resultController.updateResult
+);
 router.delete('/:resultId', authenticate, isAdmin, resultController.deleteResult);
 
 module.exports = router;

@@ -2,33 +2,6 @@ const { HTTP_STATUS } = require('../utils/constants');
 const adminService = require('../services/admin.service');
 const logger = require('../utils/logger');
 
-const getAllUsers = async (req, res, next) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const filters = {
-      mobileNumber: req.query.mobileNumber,
-      isVerified: req.query.isVerified !== undefined ? req.query.isVerified === 'true' : undefined
-    };
-    
-    const result = await adminService.getAllUsers(page, limit, filters);
-    
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      data: result.users,
-      pagination: {
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-        totalPages: result.totalPages
-      }
-    });
-  } catch (error) {
-    logger.error('Error in getAllUsers controller:', error);
-    next(error);
-  }
-};
-
 const getMarathonParticipants = async (req, res, next) => {
   try {
     const filters = {
@@ -91,7 +64,6 @@ const getPaymentStatistics = async (req, res, next) => {
 };
 
 module.exports = {
-  getAllUsers,
   getMarathonParticipants,
   getTshirtSizeReport,
   getPaymentStatistics

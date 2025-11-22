@@ -5,72 +5,95 @@ const Marathon = require('../models/Marathon');
 const { generateBIBNumber, calculateAge } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
-// Register participant
-const registerParticipant = async (userId, marathonId, participantData) => {
+// Register multiple participants for multiple marathons
+const registerParticipant = async (registrations) => {
+  const transaction = await Participant.sequelize.transaction();
+  
   try {
-    // Check if marathon exists
-    const marathon = await Marathon.findByPk(marathonId);
-    if (!marathon) {
-      throw new Error('Marathon not found');
+    const createdParticipants = [];
+    let totalAmount = 0;
+    
+    // Validate all marathons exist and calculate total amount
+    const marathonIds = [...new Set(registrations.map(r => r.marathonId))];
+    const marathons = await Marathon.findAll({
+      where: { Id: { [Op.in]: marathonIds } },
+      transaction
+    });
+    
+    if (marathons.length !== marathonIds.length) {
+      throw new Error('One or more marathons not found');
     }
     
-    // Check if user already registered for this marathon
-    const existingParticipant = await Participant.findOne({
-      where: {
-        User_Id: userId,
-        Marathon_Id: marathonId
+    const marathonMap = {};
+    marathons.forEach(marathon => {
+      marathonMap[marathon.Id] = marathon;
+    });
+    
+    // Process each registration
+    for (const registration of registrations) {
+      const { marathonId, participantData } = registration;
+      const marathon = marathonMap[marathonId];
+      
+      if (!marathon) {
+        throw new Error(`Marathon with ID ${marathonId} not found`);
       }
-    });
-    
-    if (existingParticipant) {
-      throw new Error('You are already registered for this marathon');
+      
+      // Calculate age from date of birth
+      const age = calculateAge(participantData.Date_of_Birth);
+      participantData.Age = age;
+      
+      // Create participant details
+      const participantDetails = await ParticipantDetails.create(participantData, { transaction });
+      
+      // Generate BIB number (pass transaction for consistency)
+      const bibNumber = await generateBIBNumber(transaction);
+      
+      // Create participant record
+      const participant = await Participant.create({
+        ParticipantDetails_Id: participantDetails.Id,
+        Marathon_Id: marathonId,
+        Marathon_Type: participantData.Marathon_Type || 'Open',
+        BIB_Number: bibNumber,
+        Is_Payment_Completed: false
+      }, { transaction });
+      
+      // Add marathon fee to total amount
+      if (marathon.Fees_Amount) {
+        totalAmount += parseFloat(marathon.Fees_Amount);
+      }
+      
+      // Fetch complete participant data
+      const completeParticipant = await Participant.findByPk(participant.Id, {
+        include: [
+          { model: ParticipantDetails, as: 'ParticipantDetails' },
+          { model: Marathon, as: 'Marathon' }
+        ],
+        transaction
+      });
+      
+      createdParticipants.push(completeParticipant);
     }
     
-    // Calculate age from date of birth
-    const age = calculateAge(participantData.Date_of_Birth);
-    participantData.Age = age;
+    await transaction.commit();
     
-    // Create participant details
-    const participantDetails = await ParticipantDetails.create(participantData);
+    logger.info(`Registration successful: ${createdParticipants.length} participant(s) registered, Total amount: ${totalAmount}`);
     
-    // Create participant record
-    const participant = await Participant.create({
-      User_Id: userId,
-      ParticipantDetails_Id: participantDetails.Id,
-      Marathon_Id: marathonId,
-      Marathon_Type: participantData.Marathon_Type || 'Open',
-      Is_Payment_Completed: false
-    });
-    
-    // Generate BIB number
-    participant.BIB_Number = generateBIBNumber(marathonId, participant.Id);
-    await participant.save();
-    
-    // Fetch complete participant data
-    const completeParticipant = await Participant.findByPk(participant.Id, {
-      include: [
-        { model: ParticipantDetails, as: 'ParticipantDetails' },
-        { model: Marathon, as: 'Marathon' }
-      ]
-    });
-    
-    return completeParticipant;
+    return {
+      participants: createdParticipants,
+      totalAmount: totalAmount.toFixed(2)
+    };
   } catch (error) {
+    await transaction.rollback();
     logger.error('Error in registerParticipant:', error);
     throw error;
   }
 };
 
 // Get participant by ID
-const getParticipantById = async (participantId, userId = null) => {
+const getParticipantById = async (participantId) => {
   try {
-    const whereClause = { Id: participantId };
-    if (userId) {
-      whereClause.User_Id = userId;
-    }
-    
     const participant = await Participant.findOne({
-      where: whereClause,
+      where: { Id: participantId },
       include: [
         { model: ParticipantDetails, as: 'ParticipantDetails' },
         { model: Marathon, as: 'Marathon' }
@@ -84,21 +107,20 @@ const getParticipantById = async (participantId, userId = null) => {
   }
 };
 
-// Get all participants for a user
-const getUserParticipants = async (userId) => {
+// Get participants by IDs (for payment verification)
+const getParticipantsByIds = async (participantIds) => {
   try {
     const participants = await Participant.findAll({
-      where: { User_Id: userId },
+      where: { Id: { [Op.in]: participantIds } },
       include: [
         { model: ParticipantDetails, as: 'ParticipantDetails' },
         { model: Marathon, as: 'Marathon' }
-      ],
-      order: [['Created_At', 'DESC']]
+      ]
     });
     
     return participants;
   } catch (error) {
-    logger.error('Error in getUserParticipants:', error);
+    logger.error('Error in getParticipantsByIds:', error);
     throw error;
   }
 };
@@ -106,6 +128,6 @@ const getUserParticipants = async (userId) => {
 module.exports = {
   registerParticipant,
   getParticipantById,
-  getUserParticipants
+  getParticipantsByIds
 };
 

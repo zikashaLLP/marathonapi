@@ -71,8 +71,76 @@ const handleUpload = (req, res, next) => {
   });
 };
 
+// Ensure result images directory exists
+const resultImagesDir = path.join(__dirname, '../../public/uploads/result-images');
+if (!fs.existsSync(resultImagesDir)) {
+  fs.mkdirSync(resultImagesDir, { recursive: true });
+  logger.info('Created result images directory:', resultImagesDir);
+}
+
+// Configure storage for result images
+const resultImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, resultImagesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const filename = `result-image-${uniqueSuffix}${ext}`;
+    cb(null, filename);
+  }
+});
+
+// File filter for result images
+const resultImageFileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'), false);
+  }
+};
+
+// Configure multer for result images
+const uploadResultImage = multer({
+  storage: resultImageStorage,
+  fileFilter: resultImageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+// Middleware for single result image upload
+const uploadResultImageSingle = uploadResultImage.single('image');
+
+// Middleware wrapper to handle result image upload errors
+const handleResultImageUpload = (req, res, next) => {
+  uploadResultImageSingle(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'File size too large. Maximum size is 5MB.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Upload error: ${err.message}`
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload error'
+      });
+    }
+    next();
+  });
+};
+
 module.exports = {
   handleUpload,
-  uploadRouteMap
+  uploadRouteMap,
+  handleResultImageUpload,
+  uploadResultImageSingle
 };
 

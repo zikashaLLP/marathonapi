@@ -10,6 +10,10 @@ const createMarathonValidator = [
     .optional()
     .isLength({ max: 50 })
     .withMessage('Track length must be less than 50 characters'),
+  body('Description')
+    .optional()
+    .isString()
+    .withMessage('Description must be a string'),
   body('Date')
     .optional()
     .isISO8601()
@@ -66,6 +70,10 @@ const updateMarathonValidator = [
     .optional()
     .isLength({ max: 50 })
     .withMessage('Track length must be less than 50 characters'),
+  body('Description')
+    .optional()
+    .isString()
+    .withMessage('Description must be a string'),
   body('Date')
     .optional()
     .isISO8601()

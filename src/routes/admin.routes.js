@@ -5,39 +5,6 @@ const { isAdmin } = require('../middleware/rbac.middleware');
 
 /**
  * @swagger
- * /api/admin/users:
- *   get:
- *     summary: Get all users (Admin only)
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: mobileNumber
- *         schema:
- *           type: string
- *       - in: query
- *         name: isVerified
- *         schema:
- *           type: boolean
- *     responses:
- *       200:
- *         description: List of users
- */
-router.get('/users', isAdmin, adminController.getAllUsers);
-
-/**
- * @swagger
  * /api/admin/participants:
  *   get:
  *     summary: Get marathon participants with filters (Admin only)

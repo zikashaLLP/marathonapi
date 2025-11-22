@@ -40,6 +40,10 @@ const Result = sequelize.define('Result', {
     type: DataTypes.ENUM('First', 'Second', 'Third'),
     allowNull: true
   },
+  Image: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
   Created_At: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

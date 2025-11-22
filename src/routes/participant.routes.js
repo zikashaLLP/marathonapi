@@ -1,24 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const participantController = require('../controllers/participant.controller');
-const { registerParticipantValidator } = require('../validators/participant.validator');
+const { bulkRegisterParticipantValidator } = require('../validators/bulkParticipant.validator');
 const { validate } = require('../middleware/validator.middleware');
-const { authenticate } = require('../middleware/auth.middleware');
 
 /**
  * @swagger
- * /api/participant/marathon/{marathonId}/register:
+ * /api/participant/register:
  *   post:
- *     summary: Register for a marathon
+ *     summary: Register multiple participants for multiple marathons (No authentication required)
  *     tags: [Participant]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: marathonId
- *         required: true
- *         schema:
- *           type: integer
  *     requestBody:
  *       required: true
  *       content:
@@ -26,59 +17,27 @@ const { authenticate } = require('../middleware/auth.middleware');
  *           schema:
  *             type: object
  *             required:
- *               - Full_Name
- *               - Email
- *               - Contact_Number
- *               - Gender
- *               - Date_of_Birth
- *               - Address
- *               - City
- *               - Pincode
- *               - State
- *               - Tshirt_Size
- *               - Blood_Group
- *               - Is_Terms_Condition_Accepted
+ *               - registrations
  *             properties:
- *               Full_Name:
- *                 type: string
- *               Email:
- *                 type: string
- *               Contact_Number:
- *                 type: string
- *               Gender:
- *                 type: string
- *                 enum: [Male, Female, Other]
- *               Date_of_Birth:
- *                 type: string
- *                 format: date
- *               Address:
- *                 type: string
- *               City:
- *                 type: string
- *               Pincode:
- *                 type: string
- *               State:
- *                 type: string
- *               Tshirt_Size:
- *                 type: string
- *                 enum: [XS, S, M, L, XL, XXL]
- *               Blood_Group:
- *                 type: string
- *               Marathon_Type:
- *                 type: string
- *                 enum: [Open, Defence]
- *               Running_Group:
- *                 type: string
- *               Is_Terms_Condition_Accepted:
- *                 type: boolean
+ *               registrations:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - marathonId
+ *                     - participantData
+ *                   properties:
+ *                     marathonId:
+ *                       type: integer
+ *                     participantData:
+ *                       type: object
  *     responses:
  *       201:
- *         description: Participant registered successfully
+ *         description: Participants registered successfully
  */
 router.post(
-  '/marathon/:marathonId/register',
-  authenticate,
-  registerParticipantValidator,
+  '/register',
+  bulkRegisterParticipantValidator,
   validate,
   participantController.registerParticipant
 );
@@ -87,10 +46,8 @@ router.post(
  * @swagger
  * /api/participant/{participantId}:
  *   get:
- *     summary: Get participant details
+ *     summary: Get participant details (No authentication required)
  *     tags: [Participant]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: participantId
@@ -101,21 +58,7 @@ router.post(
  *       200:
  *         description: Participant details
  */
-router.get('/:participantId', authenticate, participantController.getParticipant);
-
-/**
- * @swagger
- * /api/participant:
- *   get:
- *     summary: Get all participants for logged in user
- *     tags: [Participant]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of participants
- */
-router.get('/', authenticate, participantController.getUserParticipants);
+router.get('/:participantId', participantController.getParticipant);
 
 module.exports = router;
 

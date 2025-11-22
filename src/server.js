@@ -9,10 +9,15 @@ const PORT = process.env.PORT || 3000;
 testConnection();
 
 // Sync database models (set to false in production, use migrations instead)
+// Use FORCE_SYNC=true to drop and recreate all tables (WARNING: deletes all data!)
 if (process.env.NODE_ENV === 'development') {
-  sequelize.sync({ alter: false })
+  const syncOptions = process.env.FORCE_SYNC === 'true' 
+    ? { force: true } 
+    : { alter: false };
+  
+  sequelize.sync(syncOptions)
     .then(() => {
-      logger.info('✅ Database models synchronized');
+      logger.info(`✅ Database models synchronized${process.env.FORCE_SYNC === 'true' ? ' (FORCE - all data deleted)' : ''}`);
     })
     .catch((error) => {
       logger.error('❌ Error synchronizing database models:', error);

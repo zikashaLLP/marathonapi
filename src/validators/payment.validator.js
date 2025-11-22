@@ -1,16 +1,22 @@
 const { body, param } = require('express-validator');
 
 const createPaymentValidator = [
-  body('participantId')
+  body('participantIds')
     .notEmpty()
-    .withMessage('Participant ID is required')
-    .isInt()
-    .withMessage('Participant ID must be an integer'),
-  body('amount')
+    .withMessage('participantIds array is required')
+    .isArray({ min: 1 })
+    .withMessage('participantIds must be a non-empty array')
+    .custom((value) => {
+      if (value.some(id => !Number.isInteger(parseInt(id)))) {
+        throw new Error('All participant IDs must be valid integers');
+      }
+      return true;
+    }),
+  body('totalAmount')
     .notEmpty()
-    .withMessage('Amount is required')
+    .withMessage('Total amount is required')
     .isFloat({ min: 0.01 })
-    .withMessage('Amount must be a positive number')
+    .withMessage('Total amount must be a positive number')
 ];
 
 const paymentStatusValidator = [

@@ -2,6 +2,26 @@ const Result = require('../models/Result');
 const Marathon = require('../models/Marathon');
 const logger = require('../utils/logger');
 
+// Helper function to construct full URL for image
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  return `${baseUrl}${imagePath}`;
+};
+
+// Helper function to format result with full image URL
+const formatResult = (result) => {
+  if (!result) return null;
+  
+  const resultJson = result.toJSON ? result.toJSON() : result;
+  
+  if (resultJson.Image) {
+    resultJson.Image_Url = getImageUrl(resultJson.Image);
+  }
+  
+  return resultJson;
+};
+
 // Upload result
 const uploadResult = async (resultData) => {
   try {
@@ -12,7 +32,7 @@ const uploadResult = async (resultData) => {
     }
     
     const result = await Result.create(resultData);
-    return result;
+    return formatResult(result);
   } catch (error) {
     logger.error('Error in uploadResult:', error);
     throw error;
@@ -53,7 +73,7 @@ const getAllResults = async (filters = {}) => {
       ]
     });
     
-    return results;
+    return results.map(formatResult);
   } catch (error) {
     logger.error('Error in getAllResults:', error);
     throw error;
@@ -69,7 +89,7 @@ const getResultById = async (resultId) => {
       ]
     });
     
-    return result;
+    return formatResult(result);
   } catch (error) {
     logger.error('Error in getResultById:', error);
     throw error;
@@ -86,7 +106,7 @@ const updateResult = async (resultId, updateData) => {
     }
     
     await result.update(updateData);
-    return result;
+    return formatResult(result);
   } catch (error) {
     logger.error('Error in updateResult:', error);
     throw error;
@@ -118,7 +138,7 @@ const bulkUploadResults = async (resultsData) => {
       returning: true
     });
     
-    return results;
+    return results.map(formatResult);
   } catch (error) {
     logger.error('Error in bulkUploadResults:', error);
     throw error;
