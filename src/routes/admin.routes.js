@@ -42,7 +42,7 @@ const { isAdmin } = require('../middleware/rbac.middleware');
  *         name: tshirtSize
  *         schema:
  *           type: string
- *           enum: [XS, S, M, L, XL, XXL]
+ *           enum: [XXS-34, XS-36, S-38, M-40, L-42, XL-44, XXL-46, Child Size 10 to 12 Years - 32]
  *       - in: query
  *         name: marathonName
  *         schema:

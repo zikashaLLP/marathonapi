@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS ParticipantDetails (
     City VARCHAR(100) NOT NULL,
     Pincode VARCHAR(10) NOT NULL,
     State VARCHAR(100) NOT NULL,
-    Tshirt_Size ENUM('XS','S','M','L','XL','XXL') NOT NULL,
+    Tshirt_Size ENUM('XXS-34','XS-36','S-38','M-40','L-42','XL-44','XXL-46','Child Size 10 to 12 Years - 32') NOT NULL,
     Date_of_Birth DATE NOT NULL,
     Blood_Group VARCHAR(10) NOT NULL,
     Running_Group VARCHAR(255),

@@ -21,7 +21,7 @@ module.exports = {
     OTHER: 'Other'
   },
   
-  TSHIRT_SIZES: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  TSHIRT_SIZES: ['XXS-34', 'XS-36', 'S-38', 'M-40', 'L-42', 'XL-44', 'XXL-46', 'Child Size 10 to 12 Years - 32'],
   
   RESULT_POSITION: {
     FIRST: 'First',

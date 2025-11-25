@@ -47,7 +47,7 @@ const ParticipantDetails = sequelize.define('ParticipantDetails', {
     allowNull: false
   },
   Tshirt_Size: {
-    type: DataTypes.ENUM('XS', 'S', 'M', 'L', 'XL', 'XXL'),
+    type: DataTypes.ENUM('XXS-34', 'XS-36', 'S-38', 'M-40', 'L-42', 'XL-44', 'XXL-46', 'Child Size 10 to 12 Years - 32'),
     allowNull: false
   },
   Date_of_Birth: {
