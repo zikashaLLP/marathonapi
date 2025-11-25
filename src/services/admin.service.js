@@ -93,14 +93,13 @@ const getTshirtSizeReport = async (marathonId = null) => {
     
     // Count T-shirt sizes
     const sizeCount = {
-      'XXS-34': 0,
-      'XS-36': 0,
-      'S-38': 0,
-      'M-40': 0,
-      'L-42': 0,
-      'XL-44': 0,
-      'XXL-46': 0,
-      'Child Size 10 to 12 Years - 32': 0,
+      'XS 34': 0,
+      'S 36': 0,
+      'M 38': 0,
+      'L 40': 0,
+      'XL 42': 0,
+      'XXL 44': 0,
+      '3XL 46': 0,
       Total: participants.length
     };
     
