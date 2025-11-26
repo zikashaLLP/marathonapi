@@ -38,6 +38,10 @@ const Participant = sequelize.define('Participant', {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
+  Is_Notified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
   Created_At: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

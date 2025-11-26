@@ -146,37 +146,57 @@ const verifyPayment = async (merchantOrderId) => {
     
     // Send email and WhatsApp notifications if payment successful
     if (paymentStatus === 'Success') {
+      let notificationCount = 0;
+      
       for (const payment of payments) {
         if (payment.Participant && payment.Participant.ParticipantDetails) {
-          const participantData = {
-            Full_Name: payment.Participant.ParticipantDetails.Full_Name,
-            BIB_Number: payment.Participant.BIB_Number,
-            Marathon: payment.Participant.Marathon
-          };
-          
-          // Send email
-          try {
-            await emailService.sendTicketEmail(
-              payment.Participant.ParticipantDetails.Email,
-              participantData
-            );
-          } catch (emailError) {
-            logger.error(`Failed to send email to ${payment.Participant.ParticipantDetails.Email}:`, emailError);
-          }
-          
-          // Send WhatsApp
-          try {
-            await whatsappService.sendTicketWhatsApp(
-              payment.Participant.ParticipantDetails.Contact_Number,
-              participantData
-            );
-          } catch (whatsappError) {
-            logger.error(`Failed to send WhatsApp to ${payment.Participant.ParticipantDetails.Contact_Number}:`, whatsappError);
+          // Only send notifications if Is_Notified is false
+          if (payment.Participant.Is_Notified === false) {
+            const participantData = {
+              Full_Name: payment.Participant.ParticipantDetails.Full_Name,
+              BIB_Number: payment.Participant.BIB_Number,
+              Marathon: payment.Participant.Marathon
+            };
+            
+            let emailSent = false;
+            let whatsappSent = false;
+            
+            // Send email
+            try {
+              emailSent = await emailService.sendTicketEmail(
+                payment.Participant.ParticipantDetails.Email,
+                participantData
+              );
+            } catch (emailError) {
+              logger.error(`Failed to send email to ${payment.Participant.ParticipantDetails.Email}:`, emailError);
+            }
+            
+            // Send WhatsApp
+            try {
+              whatsappSent = await whatsappService.sendTicketWhatsApp(
+                payment.Participant.ParticipantDetails.Contact_Number,
+                participantData
+              );
+            } catch (whatsappError) {
+              logger.error(`Failed to send WhatsApp to ${payment.Participant.ParticipantDetails.Contact_Number}:`, whatsappError);
+            }
+            
+            // Set Is_Notified to true after sending notifications (even if one fails, mark as notified to prevent duplicates)
+            if (emailSent || whatsappSent) {
+              payment.Participant.Is_Notified = true;
+              await payment.Participant.save();
+              notificationCount++;
+              logger.info(`Notifications sent and Is_Notified set to true for participant ${payment.Participant.Id}`);
+            }
+          } else {
+            logger.info(`Skipping notifications for participant ${payment.Participant.Id} - already notified (Is_Notified: true)`);
           }
         }
       }
       
-      logger.info(`Notifications sent for ${payments.length} participant(s) after successful payment`);
+      if (notificationCount > 0) {
+        logger.info(`Notifications sent for ${notificationCount} participant(s) after successful payment`);
+      }
     }
     
     return {
