@@ -93,16 +93,6 @@ const getEmailTemplate = (participantData) => {
                                         <span style="color: #666666; font-size: 14px;">${formatTime(Marathon?.Reporting_Time)}</span>
                                     </td>
                                 </tr>
-                                ${Marathon?.Run_Start_Time ? `
-                                <tr>
-                                    <td style="padding: 12px 0;">
-                                        <strong style="color: #333333; font-size: 14px;">Run Start Time:</strong>
-                                    </td>
-                                    <td style="padding: 12px 0; text-align: right;">
-                                        <span style="color: #666666; font-size: 14px;">${formatTime(Marathon.Run_Start_Time)}</span>
-                                    </td>
-                                </tr>
-                                ` : ''}
                             </table>
                             
                             <p style="margin: 30px 0 0 0; color: #333333; font-size: 16px; line-height: 1.6;">
