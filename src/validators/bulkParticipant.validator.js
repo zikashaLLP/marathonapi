@@ -36,10 +36,13 @@ const bulkRegisterParticipantValidator = [
     .isISO8601()
     .withMessage('Invalid date format'),
   body('registrations.*.participantData.Address')
-    .notEmpty()
-    .withMessage('Address is required')
-    .isLength({ min: 5 })
-    .withMessage('Address must be at least 5 characters'),
+    .optional()
+    .custom((value) => {
+      if (value !== undefined && value !== null && value !== '' && value.length < 5) {
+        throw new Error('Address must be at least 5 characters if provided');
+      }
+      return true;
+    }),
   body('registrations.*.participantData.City')
     .notEmpty()
     .withMessage('City is required')
@@ -51,20 +54,30 @@ const bulkRegisterParticipantValidator = [
     .isPostalCode('IN')
     .withMessage('Invalid pincode format'),
   body('registrations.*.participantData.State')
-    .notEmpty()
-    .withMessage('State is required')
-    .isLength({ min: 2, max: 100 })
-    .withMessage('State must be between 2 and 100 characters'),
+    .optional()
+    .custom((value) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (value.length < 2 || value.length > 100) {
+          throw new Error('State must be between 2 and 100 characters if provided');
+        }
+      }
+      return true;
+    }),
   body('registrations.*.participantData.Tshirt_Size')
     .notEmpty()
     .withMessage('T-shirt size is required')
     .isIn(TSHIRT_SIZES)
     .withMessage('Invalid T-shirt size'),
   body('registrations.*.participantData.Blood_Group')
-    .notEmpty()
-    .withMessage('Blood group is required')
-    .isLength({ min: 1, max: 10 })
-    .withMessage('Invalid blood group format'),
+    .optional()
+    .custom((value) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (value.length < 1 || value.length > 10) {
+          throw new Error('Blood group must be between 1 and 10 characters if provided');
+        }
+      }
+      return true;
+    }),
   body('registrations.*.participantData.Marathon_Type')
     .optional()
     .isIn(Object.values(MARATHON_TYPE))

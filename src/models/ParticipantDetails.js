@@ -32,7 +32,7 @@ const ParticipantDetails = sequelize.define('ParticipantDetails', {
   },
   Address: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true
   },
   City: {
     type: DataTypes.STRING(100),
@@ -44,7 +44,7 @@ const ParticipantDetails = sequelize.define('ParticipantDetails', {
   },
   State: {
     type: DataTypes.STRING(100),
-    allowNull: false
+    allowNull: true
   },
   Tshirt_Size: {
     type: DataTypes.ENUM('XS 34', 'S 36', 'M 38', 'L 40', 'XL 42', 'XXL 44', '3XL 46'),
@@ -56,7 +56,7 @@ const ParticipantDetails = sequelize.define('ParticipantDetails', {
   },
   Blood_Group: {
     type: DataTypes.STRING(10),
-    allowNull: false
+    allowNull: true
   },
   Running_Group: {
     type: DataTypes.STRING(255),

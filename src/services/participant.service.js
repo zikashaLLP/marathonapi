@@ -38,6 +38,17 @@ const registerParticipant = async (registrations) => {
         throw new Error(`Marathon with ID ${marathonId} not found`);
       }
       
+      // Convert empty strings to null for optional fields
+      if (participantData.Address === '') {
+        participantData.Address = null;
+      }
+      if (participantData.State === '') {
+        participantData.State = null;
+      }
+      if (participantData.Blood_Group === '') {
+        participantData.Blood_Group = null;
+      }
+      
       // Calculate age from date of birth
       const age = calculateAge(participantData.Date_of_Birth);
       participantData.Age = age;
