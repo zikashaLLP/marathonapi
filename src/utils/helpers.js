@@ -3,7 +3,7 @@ const generateOTP = (length = 6) => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Generate BIB Number - starts from 10001 and increments
+// Generate BIB Number - starts from 0001 and increments (formatted as 4 digits)
 const generateBIBNumber = async (transaction = null) => {
   const Participant = require('../models/Participant');
   const { sequelize } = require('../config/database');
@@ -21,13 +21,13 @@ const generateBIBNumber = async (transaction = null) => {
     transaction
   });
   
-  let nextBibNumber = 10001; // Starting number
+  let nextBibNumber = 1; // Starting number
   
   if (participants && participants.length > 0) {
     // Extract numeric BIB numbers and find max
     const bibNumbers = participants
       .map(p => parseInt(p.BIB_Number))
-      .filter(num => !isNaN(num) && num >= 10001);
+      .filter(num => !isNaN(num) && num >= 1);
     
     if (bibNumbers.length > 0) {
       const maxBib = Math.max(...bibNumbers);
@@ -35,7 +35,8 @@ const generateBIBNumber = async (transaction = null) => {
     }
   }
   
-  return nextBibNumber.toString();
+  // Format as 4-digit string with leading zeros (e.g., "0001", "0002", "0123")
+  return nextBibNumber.toString().padStart(4, '0');
 };
 
 // Format phone number

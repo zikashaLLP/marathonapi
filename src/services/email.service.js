@@ -1,10 +1,12 @@
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 // Create email HTML template
 const getEmailTemplate = (participantData) => {
-  const { Full_Name, BIB_Number, Marathon } = participantData;
+  const { Full_Name, BIB_Number, Marathon, Tshirt_Size } = participantData;
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -93,6 +95,14 @@ const getEmailTemplate = (participantData) => {
                                         <span style="color: #666666; font-size: 14px;">${formatTime(Marathon?.Reporting_Time)}</span>
                                     </td>
                                 </tr>
+                                <tr>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e0e0e0;">
+                                        <strong style="color: #333333; font-size: 14px;">T-shirt Size:</strong>
+                                    </td>
+                                    <td style="padding: 12px 0; border-bottom: 1px solid #e0e0e0; text-align: right;">
+                                        <span style="color: #666666; font-size: 14px;">${Tshirt_Size || 'N/A'}</span>
+                                    </td>
+                                </tr>
                             </table>
                             
                             <p style="margin: 30px 0 0 0; color: #333333; font-size: 16px; line-height: 1.6;">
@@ -108,12 +118,7 @@ const getEmailTemplate = (participantData) => {
                     <!-- Footer -->
                     <tr>
                         <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e0e0e0;">
-                            <p style="margin: 0 0 10px 0; color: #666666; font-size: 14px;">
-                                <strong>Marathon Organizing Committee</strong>
-                            </p>
-                            <p style="margin: 0; color: #999999; font-size: 12px;">
-                                Please keep this email for your records. Your BIB number is required on the day of the event.
-                            </p>
+                            <img src="cid:logo" alt="Rotary Club of Visnagar" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
                         </td>
                     </tr>
                 </table>
@@ -154,7 +159,7 @@ const getTransporter = () => {
 
 const sendTicketEmail = async (email, participantData) => {
   try {
-    const { Full_Name, BIB_Number, Marathon } = participantData;
+    const { Full_Name, BIB_Number, Marathon, Tshirt_Size } = participantData;
     
     const emailSubject = `Registration Confirmed - Visnagar Marathon 2025 | BIB: ${BIB_Number}`;
     const htmlContent = getEmailTemplate(participantData);
@@ -170,6 +175,7 @@ Bib/Confirmation Number: ${BIB_Number}
 Event Date: ${Marathon?.Date || 'N/A'}
 Event Venue: ${Marathon?.Location || 'N/A'}
 Reporting Time: ${Marathon?.Reporting_Time || 'N/A'}
+T-shirt Size: ${Tshirt_Size || 'N/A'}
 
 Stay prepared and keep training.
 
@@ -179,12 +185,43 @@ Best regards,
 Marathon Organizing Committee
     `;
     
+    // Prepare file paths
+    const pdfPath = path.join(__dirname, '../../public/Race Announcement (1) - Visnagar Marathon 2025.pdf');
+    const logoPath = path.join(__dirname, '../../public/logo.jpeg');
+    
+    // Prepare attachments
+    const attachments = [];
+    
+    // Add PDF as attachment
+    if (fs.existsSync(pdfPath)) {
+      attachments.push({
+        filename: 'Race Announcement - Visnagar Marathon 2025.pdf',
+        path: pdfPath,
+        contentType: 'application/pdf'
+      });
+    } else {
+      logger.warn(`PDF file not found at: ${pdfPath}`);
+    }
+    
+    // Add logo as inline image (for embedding in email)
+    if (fs.existsSync(logoPath)) {
+      attachments.push({
+        filename: 'logo.jpeg',
+        path: logoPath,
+        cid: 'logo', // Content ID for inline image
+        contentType: 'image/jpeg'
+      });
+    } else {
+      logger.warn(`Logo file not found at: ${logoPath}`);
+    }
+    
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: email,
       subject: emailSubject,
       text: textContent,
-      html: htmlContent
+      html: htmlContent,
+      attachments: attachments
     };
     
     const emailTransporter = getTransporter();

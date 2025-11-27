@@ -155,7 +155,8 @@ const verifyPayment = async (merchantOrderId) => {
             const participantData = {
               Full_Name: payment.Participant.ParticipantDetails.Full_Name,
               BIB_Number: payment.Participant.BIB_Number,
-              Marathon: payment.Participant.Marathon
+              Marathon: payment.Participant.Marathon,
+              Tshirt_Size: payment.Participant.ParticipantDetails.Tshirt_Size
             };
             
             let emailSent = false;
