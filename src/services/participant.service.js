@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const Participant = require('../models/Participant');
 const ParticipantDetails = require('../models/ParticipantDetails');
 const Marathon = require('../models/Marathon');
-const { generateBIBNumber, calculateAge } = require('../utils/helpers');
+const { calculateAge, getNextAvailableBIBNumber } = require('../utils/helpers');
 const logger = require('../utils/logger');
 
 // Register multiple participants for multiple marathons
@@ -56,15 +56,11 @@ const registerParticipant = async (registrations) => {
       // Create participant details
       const participantDetails = await ParticipantDetails.create(participantData, { transaction });
       
-      // Generate BIB number (pass transaction for consistency)
-      const bibNumber = await generateBIBNumber(transaction);
-      
       // Create participant record
       const participant = await Participant.create({
         ParticipantDetails_Id: participantDetails.Id,
         Marathon_Id: marathonId,
         Marathon_Type: participantData.Marathon_Type || 'Open',
-        BIB_Number: bibNumber,
         Is_Payment_Completed: false
       }, { transaction });
       
@@ -136,9 +132,46 @@ const getParticipantsByIds = async (participantIds) => {
   }
 };
 
+const finalizeParticipantPayment = async (participantId) => {
+  const transaction = await Participant.sequelize.transaction();
+  
+  try {
+    const participant = await Participant.findOne({
+      where: { Id: participantId },
+      include: [
+        { model: ParticipantDetails, as: 'ParticipantDetails' },
+        { model: Marathon, as: 'Marathon' }
+      ],
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (!participant) {
+      throw new Error(`Participant with ID ${participantId} not found`);
+    }
+
+    participant.Is_Payment_Completed = true;
+
+    if (!participant.BIB_Number) {
+      const bibNumber = await getNextAvailableBIBNumber(transaction);
+      participant.BIB_Number = bibNumber;
+    }
+
+    await participant.save({ transaction });
+    await transaction.commit();
+
+    return participant;
+  } catch (error) {
+    await transaction.rollback();
+    logger.error('Error in finalizeParticipantPayment:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   registerParticipant,
   getParticipantById,
-  getParticipantsByIds
+  getParticipantsByIds,
+  finalizeParticipantPayment
 };
 

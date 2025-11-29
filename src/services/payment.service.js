@@ -139,8 +139,8 @@ const verifyPayment = async (merchantOrderId) => {
       
       // Update participant payment status if successful
       if (paymentStatus === 'Success' && payment.Participant) {
-        payment.Participant.Is_Payment_Completed = true;
-        await payment.Participant.save();
+        const updatedParticipant = await participantService.finalizeParticipantPayment(payment.Participant.Id);
+        payment.Participant = updatedParticipant;
       }
     }
     

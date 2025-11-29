@@ -3,12 +3,12 @@ const generateOTP = (length = 6) => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const Participant = require('../models/Participant');
+const { sequelize } = require('../config/database');
+const { Op } = require('sequelize');
+
 // Generate BIB Number - starts from 0001 and increments (formatted as 4 digits)
 const generateBIBNumber = async (transaction = null) => {
-  const Participant = require('../models/Participant');
-  const { sequelize } = require('../config/database');
-  const { Op } = require('sequelize');
-  
   // Get all BIB numbers that are numeric and find the maximum
   const participants = await Participant.findAll({
     where: {
@@ -37,6 +37,40 @@ const generateBIBNumber = async (transaction = null) => {
   
   // Format as 4-digit string with leading zeros (e.g., "0001", "0002", "0123")
   return nextBibNumber.toString().padStart(4, '0');
+};
+
+// Find and release the smallest numeric BIB that belongs to an unpaid participant
+const claimReusableBIBNumber = async (transaction = null) => {
+  const reusableParticipant = await Participant.findOne({
+    where: {
+      Is_Payment_Completed: false,
+      BIB_Number: {
+        [Op.not]: null,
+        [Op.regexp]: '^[0-9]+$'
+      }
+    },
+    order: [[sequelize.literal('CAST(BIB_Number AS UNSIGNED)'), 'ASC']],
+    transaction
+  });
+
+  if (!reusableParticipant) {
+    return null;
+  }
+
+  const reusableBib = reusableParticipant.BIB_Number;
+  reusableParticipant.BIB_Number = null;
+  await reusableParticipant.save({ transaction });
+  return reusableBib;
+};
+
+// Provide the next available BIB, prioritizing reusable ones
+const getNextAvailableBIBNumber = async (transaction = null) => {
+  const reusableBib = await claimReusableBIBNumber(transaction);
+  if (reusableBib) {
+    return reusableBib;
+  }
+
+  return generateBIBNumber(transaction);
 };
 
 // Format phone number
@@ -73,6 +107,8 @@ const calculateAge = (dateOfBirth) => {
 module.exports = {
   generateOTP,
   generateBIBNumber,
+  claimReusableBIBNumber,
+  getNextAvailableBIBNumber,
   formatPhoneNumber,
   isValidEmail,
   isValidPhoneNumber,

@@ -73,7 +73,7 @@ const getMarathonParticipants = async (filters = {}) => {
 // Get T-shirt size count report
 const getTshirtSizeReport = async (marathonId = null) => {
   try {
-    const whereClause = {};
+    const whereClause = { Is_Payment_Completed: true };
     
     if (marathonId) {
       whereClause.Marathon_Id = marathonId;
