@@ -13,6 +13,7 @@ const authRoutes = require('./routes/auth.routes');
 const participantRoutes = require('./routes/participant.routes');
 const marathonRoutes = require('./routes/marathon.routes');
 const paymentRoutes = require('./routes/payment.routes');
+const webhookRoutes = require('./routes/webhook.routes');
 const adminRoutes = require('./routes/admin.routes');
 const resultRoutes = require('./routes/result.routes');
 
@@ -72,6 +73,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/participant', participantRoutes);
 app.use('/api/marathon', marathonRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/webhook', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/result', resultRoutes);
 
