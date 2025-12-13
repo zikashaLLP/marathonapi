@@ -218,7 +218,97 @@ const verifyPayment = async (merchantOrderId) => {
   }
 };
 
+// Verify all pending payments
+// Gets all payments with pending status, extracts distinct merchantOrderIds, and verifies each
+const verifyAllPendingPayments = async () => {
+  try {
+    // Get all payments with pending status
+    const pendingPayments = await Payment.findAll({
+      where: { Payment_Status: 'Pending' },
+      attributes: ['Order_Id'],
+      raw: true
+    });
+    
+    if (!pendingPayments || pendingPayments.length === 0) {
+      logger.info('No pending payments found');
+      return {
+        success: true,
+        message: 'No pending payments found',
+        verifiedCount: 0,
+        results: []
+      };
+    }
+    
+    // Extract distinct Order_Id values (filter out null/undefined)
+    const distinctOrderIds = [...new Set(
+      pendingPayments
+        .map(p => p.Order_Id)
+        .filter(orderId => orderId != null && orderId !== '')
+    )];
+    
+    if (distinctOrderIds.length === 0) {
+      logger.info('No valid order IDs found in pending payments');
+      return {
+        success: true,
+        message: 'No valid order IDs found',
+        verifiedCount: 0,
+        results: []
+      };
+    }
+    
+    logger.info(`Found ${distinctOrderIds.length} distinct pending order(s) to verify`);
+    
+    // Verify each order
+    const results = [];
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (const orderId of distinctOrderIds) {
+      try {
+        logger.info(`Verifying payment for order: ${orderId}`);
+        const result = await verifyPayment(orderId);
+        results.push({
+          orderId,
+          success: true,
+          paymentStatus: result.paymentStatus,
+          participantCount: result.participantCount
+        });
+        successCount++;
+        logger.info(`Successfully verified payment for order: ${orderId}`);
+      } catch (error) {
+        logger.error(`Failed to verify payment for order ${orderId}:`, {
+          message: error.message,
+          stack: error.stack
+        });
+        results.push({
+          orderId,
+          success: false,
+          error: error.message
+        });
+        failureCount++;
+      }
+    }
+    
+    logger.info(`Verification completed: ${successCount} succeeded, ${failureCount} failed`);
+    
+    return {
+      success: true,
+      verifiedCount: distinctOrderIds.length,
+      successCount,
+      failureCount,
+      results
+    };
+  } catch (error) {
+    logger.error('Error in verifyAllPendingPayments:', {
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+};
+
 module.exports = {
   createPaymentOrder,
-  verifyPayment
+  verifyPayment,
+  verifyAllPendingPayments
 };

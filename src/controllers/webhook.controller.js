@@ -47,6 +47,10 @@ const handleWebhook = async (req, res) => {
       logger.warn('No merchantOrderId found in webhook payload');
     }
 
+    // Verify all pending payments
+    const pendingPayments = await paymentService.verifyAllPendingPayments();
+    logger.info('Pending payments verification result:', pendingPayments);
+
     // Always return success to PhonePe to acknowledge receipt
     return res.json({ status: 'ok' });
 
