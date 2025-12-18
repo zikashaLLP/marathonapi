@@ -63,9 +63,50 @@ const getPaymentStatistics = async (req, res, next) => {
   }
 };
 
+const getParticipantsWithPaymentDetails = async (req, res, next) => {
+  try {
+    const paymentStatus = req.query.paymentStatus || 'all';
+    
+    // Validate paymentStatus
+    if (paymentStatus !== 'all' && paymentStatus !== 'Completed') {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "paymentStatus must be either 'all' or 'Completed'"
+      });
+    }
+    
+    const participants = await adminService.getParticipantsWithPaymentDetails(paymentStatus);
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: participants,
+      count: participants.length
+    });
+  } catch (error) {
+    logger.error('Error in getParticipantsWithPaymentDetails controller:', error);
+    next(error);
+  }
+};
+
+const getParticipantStatisticsByGroup = async (req, res, next) => {
+  try {
+    const statistics = await adminService.getParticipantStatisticsByGroup();
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: statistics
+    });
+  } catch (error) {
+    logger.error('Error in getParticipantStatisticsByGroup controller:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getMarathonParticipants,
   getTshirtSizeReport,
-  getPaymentStatistics
+  getPaymentStatistics,
+  getParticipantsWithPaymentDetails,
+  getParticipantStatisticsByGroup
 };
 
