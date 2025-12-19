@@ -137,11 +137,26 @@ const getParticipantStatisticsByGroup = async (req, res, next) => {
   }
 };
 
+const getParticipantStatisticsReport = async (req, res, next) => {
+  try {
+    const statistics = await adminService.getParticipantStatisticsReport();
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      data: statistics
+    });
+  } catch (error) {
+    logger.error('Error in getParticipantStatisticsReport controller:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getMarathonParticipants,
   getTshirtSizeReport,
   getPaymentStatistics,
   getParticipantsWithPaymentDetails,
-  getParticipantStatisticsByGroup
+  getParticipantStatisticsByGroup,
+  getParticipantStatisticsReport
 };
 

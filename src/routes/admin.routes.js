@@ -229,5 +229,75 @@ router.get('/participants-with-payment', isAdmin, adminController.getParticipant
  */
 router.get('/participants-statistics', isAdmin, adminController.getParticipantStatisticsByGroup);
 
+/**
+ * @swagger
+ * /api/admin/reports/participant-statistics:
+ *   get:
+ *     summary: Get participant statistics report grouped by gender and age with t-shirt size breakdown (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Participant statistics grouped by gender and age with t-shirt size breakdown
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     Women:
+ *                       type: object
+ *                       properties:
+ *                         groupName:
+ *                           type: string
+ *                           example: "Women"
+ *                         participantCount:
+ *                           type: integer
+ *                           example: 200
+ *                         tshirtSizes:
+ *                           type: object
+ *                           properties:
+ *                             XS 34:
+ *                               type: integer
+ *                               example: 10
+ *                             S 36:
+ *                               type: integer
+ *                               example: 20
+ *                             M 38:
+ *                               type: integer
+ *                               example: 40
+ *                             L 40:
+ *                               type: integer
+ *                               example: 50
+ *                             XL 42:
+ *                               type: integer
+ *                               example: 40
+ *                             XXL 44:
+ *                               type: integer
+ *                               example: 0
+ *                             3XL 46:
+ *                               type: integer
+ *                               example: 0
+ *                     Men Group A - Age upto 30:
+ *                       type: object
+ *                       properties:
+ *                         groupName:
+ *                           type: string
+ *                         participantCount:
+ *                           type: integer
+ *                         tshirtSizes:
+ *                           type: object
+ *                     Men Group B - Age 31 to 45:
+ *                       type: object
+ *                     Men Group C - Age above 45:
+ *                       type: object
+ */
+router.get('/reports/participant-statistics', isAdmin, adminController.getParticipantStatisticsReport);
+
 module.exports = router;
 

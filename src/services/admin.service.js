@@ -331,11 +331,118 @@ const getParticipantStatisticsByGroup = async (gender = 'All', minAge = null, ma
   }
 };
 
+// Get participant statistics report grouped by gender and age with t-shirt size breakdown
+const getParticipantStatisticsReport = async () => {
+  try {
+    // Reference date: December 1, 2025
+    const referenceDate = new Date('2025-12-01');
+    
+    // Get all participants with payment completed
+    const participants = await Participant.findAll({
+      where: {
+        Is_Payment_Completed: true
+      },
+      include: [
+        {
+          model: ParticipantDetails,
+          as: 'ParticipantDetails',
+          required: true
+        }
+      ]
+    });
+    
+    // Initialize t-shirt size counts
+    const initializeSizeCount = () => ({
+      'XS 34': 0,
+      'S 36': 0,
+      'M 38': 0,
+      'L 40': 0,
+      'XL 42': 0,
+      'XXL 44': 0,
+      '3XL 46': 0
+    });
+    
+    // Initialize groups
+    const womenGroup = {
+      groupName: 'Women',
+      participantCount: 0,
+      tshirtSizes: initializeSizeCount()
+    };
+    
+    const menGroupA = {
+      groupName: 'Men Group A - Age upto 30',
+      participantCount: 0,
+      tshirtSizes: initializeSizeCount()
+    };
+    
+    const menGroupB = {
+      groupName: 'Men Group B - Age 31 to 45',
+      participantCount: 0,
+      tshirtSizes: initializeSizeCount()
+    };
+    
+    const menGroupC = {
+      groupName: 'Men Group C - Age above 45',
+      participantCount: 0,
+      tshirtSizes: initializeSizeCount()
+    };
+    
+    // Process each participant
+    participants.forEach(participant => {
+      const details = participant.ParticipantDetails;
+      if (!details || !details.Date_of_Birth) return;
+      
+      const gender = details.Gender;
+      // Calculate age as of December 1, 2025
+      const age = calculateAgeAsOfDate(details.Date_of_Birth, referenceDate);
+      const tshirtSize = details.Tshirt_Size;
+      
+      // Women group
+      if (gender === 'Female') {
+        womenGroup.participantCount++;
+        if (tshirtSize && womenGroup.tshirtSizes.hasOwnProperty(tshirtSize)) {
+          womenGroup.tshirtSizes[tshirtSize]++;
+        }
+      }
+      // Men groups
+      else if (gender === 'Male') {
+        if (age <= 30) {
+          menGroupA.participantCount++;
+          if (tshirtSize && menGroupA.tshirtSizes.hasOwnProperty(tshirtSize)) {
+            menGroupA.tshirtSizes[tshirtSize]++;
+          }
+        } else if (age >= 31 && age <= 45) {
+          menGroupB.participantCount++;
+          if (tshirtSize && menGroupB.tshirtSizes.hasOwnProperty(tshirtSize)) {
+            menGroupB.tshirtSizes[tshirtSize]++;
+          }
+        } else if (age > 45) {
+          menGroupC.participantCount++;
+          if (tshirtSize && menGroupC.tshirtSizes.hasOwnProperty(tshirtSize)) {
+            menGroupC.tshirtSizes[tshirtSize]++;
+          }
+        }
+      }
+    });
+    
+    return {
+      'Women': womenGroup,
+      'Men Group A - Age upto 30': menGroupA,
+      'Men Group B - Age 31 to 45': menGroupB,
+      'Men Group C - Age above 45': menGroupC
+    };
+  } catch (error) {
+    logger.error('Error in getParticipantStatisticsReport:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   getMarathonParticipants,
   getTshirtSizeReport,
   getPaymentStatistics,
   getParticipantsWithPaymentDetails,
-  getParticipantStatisticsByGroup
+  getParticipantStatisticsByGroup,
+  getParticipantStatisticsReport
 };
 
