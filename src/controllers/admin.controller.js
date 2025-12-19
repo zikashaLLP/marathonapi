@@ -90,11 +90,46 @@ const getParticipantsWithPaymentDetails = async (req, res, next) => {
 
 const getParticipantStatisticsByGroup = async (req, res, next) => {
   try {
-    const statistics = await adminService.getParticipantStatisticsByGroup();
+    const gender = req.query.gender || 'All';
+    const minAge = req.query.minAge !== undefined ? parseInt(req.query.minAge) : null;
+    const maxAge = req.query.maxAge !== undefined ? parseInt(req.query.maxAge) : null;
+    
+    // Validate gender
+    if (gender !== 'All' && gender !== 'Male' && gender !== 'Female') {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "gender must be 'Male', 'Female', or 'All'"
+      });
+    }
+    
+    // Validate age parameters
+    if (minAge !== null && isNaN(minAge)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "minAge must be a valid number"
+      });
+    }
+    
+    if (maxAge !== null && isNaN(maxAge)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "maxAge must be a valid number"
+      });
+    }
+    
+    if (minAge !== null && maxAge !== null && minAge > maxAge) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: "minAge cannot be greater than maxAge"
+      });
+    }
+    
+    const participants = await adminService.getParticipantStatisticsByGroup(gender, minAge, maxAge);
     
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      data: statistics
+      data: participants,
+      count: participants.length
     });
   } catch (error) {
     logger.error('Error in getParticipantStatisticsByGroup controller:', error);

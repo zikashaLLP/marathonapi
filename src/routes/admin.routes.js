@@ -158,13 +158,31 @@ router.get('/participants-with-payment', isAdmin, adminController.getParticipant
  * @swagger
  * /api/admin/participants-statistics:
  *   get:
- *     summary: Get participant statistics grouped by gender and age (Admin only)
+ *     summary: Get participant details filtered by gender and age range (Admin only)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: gender
+ *         schema:
+ *           type: string
+ *           enum: [Male, Female, All]
+ *           default: All
+ *         description: Filter by gender. 'All' includes Male, Female, and Other
+ *       - in: query
+ *         name: minAge
+ *         schema:
+ *           type: integer
+ *         description: Minimum age (inclusive)
+ *       - in: query
+ *         name: maxAge
+ *         schema:
+ *           type: integer
+ *         description: Maximum age (inclusive)
  *     responses:
  *       200:
- *         description: Participant statistics grouped by gender and age
+ *         description: List of participants filtered by gender and age range
  *         content:
  *           application/json:
  *             schema:
@@ -173,38 +191,41 @@ router.get('/participants-with-payment', isAdmin, adminController.getParticipant
  *                 success:
  *                   type: boolean
  *                 data:
- *                   type: object
- *                   properties:
- *                     Women:
- *                       type: object
- *                       properties:
- *                         groupName:
- *                           type: string
- *                         participantCount:
- *                           type: integer
- *                         tshirtSizes:
- *                           type: object
- *                           properties:
- *                             XS 34:
- *                               type: integer
- *                             S 36:
- *                               type: integer
- *                             M 38:
- *                               type: integer
- *                             L 40:
- *                               type: integer
- *                             XL 42:
- *                               type: integer
- *                             XXL 44:
- *                               type: integer
- *                             3XL 46:
- *                               type: integer
- *                     Men Group A - Age upto 30:
- *                       type: object
- *                     Men Group B - Age 31 to 45:
- *                       type: object
- *                     Men Group C - Age above 45:
- *                       type: object
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       Sr.No:
+ *                         type: integer
+ *                       BIB Number:
+ *                         type: string
+ *                       Name:
+ *                         type: string
+ *                       Email:
+ *                         type: string
+ *                       Mobile No:
+ *                         type: string
+ *                       Gender:
+ *                         type: string
+ *                       City:
+ *                         type: string
+ *                       Pincode:
+ *                         type: string
+ *                       T-shirt Size:
+ *                         type: string
+ *                       Birth Date:
+ *                         type: string
+ *                         format: date
+ *                       Payment Status:
+ *                         type: string
+ *                       Payment Date:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                 count:
+ *                   type: integer
+ *       400:
+ *         description: Invalid query parameters
  */
 router.get('/participants-statistics', isAdmin, adminController.getParticipantStatisticsByGroup);
 
