@@ -151,12 +151,44 @@ const getParticipantStatisticsReport = async (req, res, next) => {
   }
 };
 
+const importParticipantsFromExcel = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: 'Excel file is required'
+      });
+    }
+    
+    const result = await adminService.processExcelImport(req.file.path);
+    
+    if (!result.success) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: result.message,
+        errors: result.errors
+      });
+    }
+    
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: result.message,
+      data: result.data,
+      count: result.count
+    });
+  } catch (error) {
+    logger.error('Error in importParticipantsFromExcel controller:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getMarathonParticipants,
   getTshirtSizeReport,
   getPaymentStatistics,
   getParticipantsWithPaymentDetails,
   getParticipantStatisticsByGroup,
-  getParticipantStatisticsReport
+  getParticipantStatisticsReport,
+  importParticipantsFromExcel
 };
 

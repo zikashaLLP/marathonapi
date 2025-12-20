@@ -299,5 +299,116 @@ router.get('/participants-statistics', isAdmin, adminController.getParticipantSt
  */
 router.get('/reports/participant-statistics', isAdmin, adminController.getParticipantStatisticsReport);
 
+/**
+ * @swagger
+ * /api/admin/import-excel:
+ *   post:
+ *     summary: Import participants from Excel file (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - excelFile
+ *             properties:
+ *               excelFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: |
+ *                   Excel file (.xlsx, .xls, .csv) with participant details.
+ *                   Required columns: Sr_No, Name, Email, Mobile_No, Gender, City, Pincode, T_Shirt_Size, Birth_Date, Amount.
+ *                   BIB_NO is optional and will be auto-generated.
+ *     responses:
+ *       200:
+ *         description: Participants imported successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       Sr_No:
+ *                         type: integer
+ *                       BIB_NO:
+ *                         type: string
+ *                       Name:
+ *                         type: string
+ *                       Email:
+ *                         type: string
+ *                       Mobile_No:
+ *                         type: string
+ *                       Gender:
+ *                         type: string
+ *                       City:
+ *                         type: string
+ *                       Pincode:
+ *                         type: string
+ *                       T_Shirt_Size:
+ *                         type: string
+ *                       Birth_Date:
+ *                         type: string
+ *                         format: date
+ *                       Amount:
+ *                         type: number
+ *                 count:
+ *                   type: integer
+ *                 notificationsSent:
+ *                   type: integer
+ *                 notificationErrors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       participantId:
+ *                         type: integer
+ *                       email:
+ *                         type: string
+ *                       mobileNo:
+ *                         type: string
+ *                       error:
+ *                         type: string
+ *                       details:
+ *                         type: string
+ *       400:
+ *         description: Validation errors or file upload error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       srNo:
+ *                         type: integer
+ *                       rowNumber:
+ *                         type: integer
+ *                       errors:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ */
+const { handleExcelUpload } = require('../middleware/upload.middleware');
+router.post('/import-excel', isAdmin, handleExcelUpload, adminController.importParticipantsFromExcel);
+
 module.exports = router;
 

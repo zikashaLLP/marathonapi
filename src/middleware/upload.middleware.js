@@ -137,10 +137,102 @@ const handleResultImageUpload = (req, res, next) => {
   });
 };
 
+// Ensure Excel uploads directory exists
+const excelUploadsDir = path.join(__dirname, '../../public/uploads/excel-imports');
+if (!fs.existsSync(excelUploadsDir)) {
+  fs.mkdirSync(excelUploadsDir, { recursive: true });
+  logger.info('Created Excel uploads directory:', excelUploadsDir);
+}
+
+// Configure storage for Excel files
+const excelStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, excelUploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const filename = `excel-import-${uniqueSuffix}${ext}`;
+    cb(null, filename);
+  }
+});
+
+// File filter for Excel files
+const excelFileFilter = (req, file, cb) => {
+  const allowedMimeTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'text/csv' // .csv
+  ];
+  
+  const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only Excel files (.xlsx, .xls, .csv) are allowed'), false);
+  }
+};
+
+// Configure multer for Excel files
+const uploadExcel = multer({
+  storage: excelStorage,
+  fileFilter: excelFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
+// Middleware for single Excel file upload
+const uploadExcelSingle = uploadExcel.single('excelFile');
+
+// Middleware wrapper to handle Excel upload errors
+const handleExcelUpload = (req, res, next) => {
+  uploadExcelSingle(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'File size too large. Maximum size is 10MB.'
+          });
+        }
+        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({
+            success: false,
+            message: 'Unexpected field name. Please use "excelFile" as the field name for the file upload.'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Upload error: ${err.message}`
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: err.message || 'File upload error'
+      });
+    }
+    
+    // Check if file was actually uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded. Please ensure the field name is "excelFile" and a file is selected.'
+      });
+    }
+    
+    next();
+  });
+};
+
 module.exports = {
   handleUpload,
   uploadRouteMap,
   handleResultImageUpload,
-  uploadResultImageSingle
+  uploadResultImageSingle,
+  handleExcelUpload,
+  uploadExcelSingle
 };
 

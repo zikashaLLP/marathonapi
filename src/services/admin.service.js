@@ -437,12 +437,390 @@ const getParticipantStatisticsReport = async () => {
   }
 };
 
+// Process Excel file and import participants
+const processExcelImport = async (filePath) => {
+  const XLSX = require('xlsx');
+  const fs = require('fs');
+  const { calculateAge, isValidEmail, isValidPhoneNumber, formatPhoneNumber, getNextAvailableBIBNumber } = require('../utils/helpers');
+  const ParticipantDetails = require('../models/ParticipantDetails');
+  const Participant = require('../models/Participant');
+  const Payment = require('../models/Payment');
+  const Marathon = require('../models/Marathon');
+  const emailService = require('./email.service');
+  const whatsappService = require('./whatsapp.service');
+  
+  const transaction = await Participant.sequelize.transaction();
+  
+  try {
+    // Read entire Excel file
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert entire worksheet to JSON (reads all rows)
+    const data = XLSX.utils.sheet_to_json(worksheet, {
+      defval: '', // Default value for empty cells
+      raw: false // Convert dates and numbers to strings for easier processing
+    });
+    
+    logger.info(`Reading Excel file: Found ${data.length} row(s) in sheet "${sheetName}"`);
+    
+    if (!data || data.length === 0) {
+      throw new Error('Excel file is empty or has no data');
+    }
+    
+    // Validation errors
+    const validationErrors = [];
+    const processedData = [];
+    
+    // Validate each row
+    data.forEach((row, index) => {
+      const rowNumber = index + 2; // Excel row number (1 is header, so +2)
+      const errors = [];
+      
+      // Map Excel columns to our fields
+      const srNo = row['Sr_No'] || row['Sr.No'] || row['Sr No'];
+      const bibNo = row['BIB_NO'] || row['BIB_NO'] || row['BIB No'] || '';
+      const name = row['Name'] || '';
+      const email = row['Email'] || '';
+      const mobileNo = row['Mobile_No'] || row['Mobile No'] || row['Mobile_No'] || '';
+      const gender = row['Gender'] || '';
+      const city = row['City'] || '';
+      const pincode = row['Pincode'] || '';
+      const tshirtSize = row['T_Shirt_Size'] || row['T-shirt Size'] || row['Tshirt_Size'] || '';
+      const birthDate = row['Birth_Date'] || row['Birth Date'] || row['Date_of_Birth'] || '';
+      const amount = row['Amount'] || '';
+      
+      // Validate required fields
+      if (!name || name.toString().trim() === '') {
+        errors.push('Name is required');
+      }
+      
+      if (!email || email.toString().trim() === '') {
+        errors.push('Email is required');
+      } else if (!isValidEmail(email.toString().trim())) {
+        errors.push('Email is invalid');
+      }
+      
+      if (!mobileNo || mobileNo.toString().trim() === '') {
+        errors.push('Mobile No is required');
+      } else {
+        const formattedPhone = formatPhoneNumber(mobileNo.toString());
+        if (!isValidPhoneNumber(formattedPhone)) {
+          errors.push('Mobile No is invalid (must be 10 digits starting with 6-9)');
+        }
+      }
+      
+      if (!birthDate || birthDate.toString().trim() === '') {
+        errors.push('Birth Date is required');
+      } else {
+        // Handle Excel date formats (could be serial number or date string)
+        let date;
+        const birthDateStr = birthDate.toString().trim();
+        
+        // Check if it's an Excel serial number (numeric)
+        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0) {
+          // Excel serial date (days since 1900-01-01)
+          const excelEpoch = new Date(1899, 11, 30); // Excel epoch is Dec 30, 1899
+          date = new Date(excelEpoch.getTime() + parseFloat(birthDateStr) * 86400000);
+        } else {
+          // Try parsing as regular date
+          date = new Date(birthDateStr);
+        }
+        
+        if (isNaN(date.getTime())) {
+          errors.push('Birth Date is invalid');
+        } else {
+          // Check if date is not in the future
+          if (date > new Date()) {
+            errors.push('Birth Date cannot be in the future');
+          }
+          // Check if date is reasonable (not before 1900)
+          if (date.getFullYear() < 1900) {
+            errors.push('Birth Date is too old (must be after 1900)');
+          }
+        }
+      }
+      
+      if (!gender || gender.toString().trim() === '') {
+        errors.push('Gender is required');
+      } else {
+        const validGenders = ['Male', 'Female', 'Other'];
+        if (!validGenders.includes(gender.toString().trim())) {
+          errors.push(`Gender must be one of: ${validGenders.join(', ')}`);
+        }
+      }
+      
+      if (!city || city.toString().trim() === '') {
+        errors.push('City is required');
+      }
+      
+      if (!pincode || pincode.toString().trim() === '') {
+        errors.push('Pincode is required');
+      }
+      
+      if (!tshirtSize || tshirtSize.toString().trim() === '') {
+        errors.push('T-shirt Size is required');
+      } else {
+        const validSizes = ['XS 34', 'S 36', 'M 38', 'L 40', 'XL 42', 'XXL 44', '3XL 46'];
+        if (!validSizes.includes(tshirtSize.toString().trim())) {
+          errors.push(`T-shirt Size must be one of: ${validSizes.join(', ')}`);
+        }
+      }
+      
+      if (!amount || amount.toString().trim() === '') {
+        errors.push('Amount is required');
+      } else {
+        const amountValue = parseFloat(amount);
+        if (isNaN(amountValue) || amountValue <= 0) {
+          errors.push('Amount must be a valid positive number');
+        }
+      }
+      
+      if (errors.length > 0) {
+        validationErrors.push({
+          srNo: srNo || rowNumber,
+          rowNumber: rowNumber,
+          errors: errors
+        });
+      } else {
+        // Parse birth date properly
+        let parsedBirthDate;
+        const birthDateStr = birthDate.toString().trim();
+        
+        // Check if it's an Excel serial number
+        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0) {
+          const excelEpoch = new Date(1899, 11, 30);
+          parsedBirthDate = new Date(excelEpoch.getTime() + parseFloat(birthDateStr) * 86400000);
+        } else {
+          parsedBirthDate = new Date(birthDateStr);
+        }
+        
+        processedData.push({
+          srNo: srNo || rowNumber,
+          bibNo: bibNo,
+          name: name.toString().trim(),
+          email: email.toString().trim(),
+          mobileNo: formatPhoneNumber(mobileNo.toString()),
+          gender: gender.toString().trim(),
+          city: city.toString().trim(),
+          pincode: pincode.toString().trim(),
+          tshirtSize: tshirtSize.toString().trim(),
+          birthDate: parsedBirthDate,
+          amount: parseFloat(amount)
+        });
+      }
+    });
+    
+    // If there are validation errors, return them
+    if (validationErrors.length > 0) {
+      await transaction.rollback();
+      return {
+        success: false,
+        errors: validationErrors,
+        message: `Validation failed for ${validationErrors.length} row(s)`
+      };
+    }
+    
+    // Fetch Marathon data (Id = 1) for notifications
+    const marathon = await Marathon.findByPk(1, { transaction });
+    if (!marathon) {
+      throw new Error('Marathon with ID 1 not found');
+    }
+    
+    // Process all valid rows in transaction
+    const resultData = [];
+    const createdParticipantIds = [];
+    
+    for (const participantData of processedData) {
+      // Generate BIB Number
+      const bibNumber = await getNextAvailableBIBNumber(transaction);
+      
+      // Calculate age
+      const age = calculateAge(participantData.birthDate);
+      
+      // Format birth date as YYYY-MM-DD for DATEONLY field
+      const formattedBirthDate = participantData.birthDate.toISOString().split('T')[0];
+      
+      // Create ParticipantDetails
+      const participantDetails = await ParticipantDetails.create({
+        Full_Name: participantData.name,
+        Email: participantData.email,
+        Contact_Number: participantData.mobileNo,
+        Gender: participantData.gender,
+        Age: age,
+        Address: null,
+        City: participantData.city,
+        Pincode: participantData.pincode,
+        State: null,
+        Tshirt_Size: participantData.tshirtSize,
+        Date_of_Birth: formattedBirthDate,
+        Blood_Group: null,
+        Running_Group: null,
+        Is_Terms_Condition_Accepted: false
+      }, { transaction });
+      
+      // Create Participant
+      const participant = await Participant.create({
+        BIB_Number: bibNumber,
+        ParticipantDetails_Id: participantDetails.Id,
+        Marathon_Id: 1,
+        Marathon_Type: 'Open',
+        Is_Payment_Completed: true,
+        Is_Notified: false
+      }, { transaction });
+      
+      // Create Payment
+      await Payment.create({
+        Participant_Id: participant.Id,
+        Amount: participantData.amount,
+        Payment_Status: 'Success',
+        Order_Id: null,
+        Transaction_Id: null
+      }, { transaction });
+      
+      // Store participant ID for notifications
+      createdParticipantIds.push(participant.Id);
+      
+      // Add to result data
+      resultData.push({
+        'Sr_No': participantData.srNo,
+        'BIB_NO': bibNumber,
+        'Name': participantData.name,
+        'Email': participantData.email,
+        'Mobile_No': participantData.mobileNo,
+        'Gender': participantData.gender,
+        'City': participantData.city,
+        'Pincode': participantData.pincode,
+        'T_Shirt_Size': participantData.tshirtSize,
+        'Birth_Date': participantData.birthDate.toISOString().split('T')[0],
+        'Amount': participantData.amount
+      });
+    }
+    
+    await transaction.commit();
+    
+    // Clean up uploaded file
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    logger.info(`Excel import successful: ${resultData.length} participant(s) imported`);
+    
+    // Send notifications for all imported participants
+    let notificationCount = 0;
+    let notificationErrors = [];
+    
+    if (createdParticipantIds.length > 0) {
+      // Fetch all created participants with their details and marathon
+      const participants = await Participant.findAll({
+        where: { Id: { [Op.in]: createdParticipantIds } },
+        include: [
+          { model: ParticipantDetails, as: 'ParticipantDetails', required: true },
+          { model: Marathon, as: 'Marathon', required: true }
+        ]
+      });
+      
+      // Send notifications for each participant
+      for (const participant of participants) {
+        if (participant.ParticipantDetails && participant.Marathon) {
+          const participantData = {
+            Full_Name: participant.ParticipantDetails.Full_Name,
+            BIB_Number: participant.BIB_Number,
+            Marathon: participant.Marathon,
+            Tshirt_Size: participant.ParticipantDetails.Tshirt_Size
+          };
+          
+          let emailSent = false;
+          let whatsappSent = false;
+          
+          // Send email
+          try {
+            emailSent = await emailService.sendTicketEmail(
+              participant.ParticipantDetails.Email,
+              participantData
+            );
+          } catch (emailError) {
+            logger.error(`Failed to send email to ${participant.ParticipantDetails.Email} (Participant ID: ${participant.Id}):`, emailError);
+            notificationErrors.push({
+              participantId: participant.Id,
+              email: participant.ParticipantDetails.Email,
+              error: 'Email sending failed',
+              details: emailError.message
+            });
+          }
+          
+          // Send WhatsApp
+          try {
+            whatsappSent = await whatsappService.sendTicketWhatsApp(
+              participant.ParticipantDetails.Contact_Number,
+              participantData
+            );
+          } catch (whatsappError) {
+            logger.error(`Failed to send WhatsApp to ${participant.ParticipantDetails.Contact_Number} (Participant ID: ${participant.Id}):`, whatsappError);
+            notificationErrors.push({
+              participantId: participant.Id,
+              mobileNo: participant.ParticipantDetails.Contact_Number,
+              error: 'WhatsApp sending failed',
+              details: whatsappError.message
+            });
+          }
+          
+          // Update Is_Notified flag if at least one notification was sent
+          if (emailSent || whatsappSent) {
+            try {
+              participant.Is_Notified = true;
+              await participant.save();
+              notificationCount++;
+              logger.info(`Notifications sent and Is_Notified set to true for participant ${participant.Id}`);
+            } catch (updateError) {
+              logger.error(`Failed to update Is_Notified for participant ${participant.Id}:`, updateError);
+            }
+          }
+        }
+      }
+      
+      if (notificationCount > 0) {
+        logger.info(`Notifications sent for ${notificationCount} participant(s) after Excel import`);
+      }
+      
+      if (notificationErrors.length > 0) {
+        logger.warn(`Failed to send notifications for ${notificationErrors.length} participant(s)`);
+      }
+    }
+    
+    return {
+      success: true,
+      data: resultData,
+      count: resultData.length,
+      message: `Successfully imported ${resultData.length} participant(s)`,
+      notificationsSent: notificationCount,
+      notificationErrors: notificationErrors.length > 0 ? notificationErrors : undefined
+    };
+  } catch (error) {
+    await transaction.rollback();
+    
+    // Clean up uploaded file on error
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (unlinkError) {
+        logger.error('Error deleting file:', unlinkError);
+      }
+    }
+    
+    logger.error('Error in processExcelImport:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   getMarathonParticipants,
   getTshirtSizeReport,
   getPaymentStatistics,
   getParticipantsWithPaymentDetails,
   getParticipantStatisticsByGroup,
-  getParticipantStatisticsReport
+  getParticipantStatisticsReport,
+  processExcelImport
 };
 
