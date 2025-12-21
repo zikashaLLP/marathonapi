@@ -519,17 +519,41 @@ const processExcelImport = async (filePath) => {
         const birthDateStr = birthDate.toString().trim();
         
         // Check if it's an Excel serial number (numeric)
-        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0) {
+        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0 && !birthDateStr.includes('-') && !birthDateStr.includes('/')) {
           // Excel serial date (days since 1900-01-01)
           const excelEpoch = new Date(1899, 11, 30); // Excel epoch is Dec 30, 1899
           date = new Date(excelEpoch.getTime() + parseFloat(birthDateStr) * 86400000);
         } else {
-          // Try parsing as regular date
-          date = new Date(birthDateStr);
+          // Try to parse DD-MM-YYYY format explicitly
+          const ddMmYyyyPattern = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
+          const match = birthDateStr.match(ddMmYyyyPattern);
+          
+          if (match) {
+            // DD-MM-YYYY format: day, month, year
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1; // JavaScript months are 0-indexed
+            const year = parseInt(match[3], 10);
+            
+            // Validate day and month
+            if (day < 1 || day > 31 || month < 0 || month > 11) {
+              errors.push('Birth Date is invalid (day or month out of range)');
+            } else {
+              date = new Date(year, month, day);
+              // Check if date is valid (handles cases like Feb 30)
+              if (date.getDate() !== day || date.getMonth() !== month || date.getFullYear() !== year) {
+                errors.push('Birth Date is invalid (invalid date)');
+              }
+            }
+          } else {
+            // Try parsing as regular date (handles other formats like YYYY-MM-DD, MM/DD/YYYY, etc.)
+            date = new Date(birthDateStr);
+          }
         }
         
-        if (isNaN(date.getTime())) {
-          errors.push('Birth Date is invalid');
+        if (!date || isNaN(date.getTime())) {
+          if (!errors.some(e => e.includes('Birth Date is invalid'))) {
+            errors.push('Birth Date is invalid. Please use DD-MM-YYYY format (e.g., 15-05-1990)');
+          }
         } else {
           // Check if date is not in the future
           if (date > new Date()) {
@@ -588,12 +612,25 @@ const processExcelImport = async (filePath) => {
         let parsedBirthDate;
         const birthDateStr = birthDate.toString().trim();
         
-        // Check if it's an Excel serial number
-        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0) {
+        // Check if it's an Excel serial number (numeric only, no dashes or slashes)
+        if (!isNaN(birthDateStr) && parseFloat(birthDateStr) > 0 && !birthDateStr.includes('-') && !birthDateStr.includes('/')) {
           const excelEpoch = new Date(1899, 11, 30);
           parsedBirthDate = new Date(excelEpoch.getTime() + parseFloat(birthDateStr) * 86400000);
         } else {
-          parsedBirthDate = new Date(birthDateStr);
+          // Try to parse DD-MM-YYYY format explicitly
+          const ddMmYyyyPattern = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
+          const match = birthDateStr.match(ddMmYyyyPattern);
+          
+          if (match) {
+            // DD-MM-YYYY format: day, month, year
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1; // JavaScript months are 0-indexed
+            const year = parseInt(match[3], 10);
+            parsedBirthDate = new Date(year, month, day);
+          } else {
+            // Try parsing as regular date (handles other formats)
+            parsedBirthDate = new Date(birthDateStr);
+          }
         }
         
         processedData.push({

@@ -323,6 +323,13 @@ router.get('/reports/participant-statistics', isAdmin, adminController.getPartic
  *                   Excel file (.xlsx, .xls, .csv) with participant details.
  *                   Required columns: Sr_No, Name, Email, Mobile_No, Gender, City, Pincode, T_Shirt_Size, Birth_Date, Amount.
  *                   BIB_NO is optional and will be auto-generated.
+ *                   
+ *                   Birth Date formats supported:
+ *                   - YYYY-MM-DD (e.g., 1990-05-15)
+ *                   - MM/DD/YYYY (e.g., 05/15/1990)
+ *                   - DD-MM-YYYY (e.g., 15-05-1990)
+ *                   - Excel serial date number (e.g., 33015)
+ *                   - Any format that JavaScript Date can parse
  *     responses:
  *       200:
  *         description: Participants imported successfully
