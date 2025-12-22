@@ -319,6 +319,7 @@ const getParticipantStatisticsByGroup = async (gender = 'All', minAge = null, ma
         'Pincode': participant.ParticipantDetails?.Pincode || '',
         'T-shirt Size': participant.ParticipantDetails?.Tshirt_Size || '',
         'Birth Date': participant.ParticipantDetails?.Date_of_Birth || '',
+        'Amount': successfulPayment.Amount || '',
         'Payment Status': participant.Is_Payment_Completed ? 'Completed' : 'Pending',
         'Payment Date': successfulPayment ? successfulPayment.Updated_At : null
       };
