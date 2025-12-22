@@ -781,102 +781,121 @@ const processExcelImport = async (filePath) => {
     
     await transaction.commit();
     
+    logger.info(`Excel import successful: ${resultData.length} participant(s) imported`);
+    
+    // Send notifications asynchronously in the background (don't wait for completion)
+    // This prevents timeout issues
+    if (createdParticipantIds.length > 0) {
+      // Process notifications asynchronously without blocking the response
+      setImmediate(async () => {
+        try {
+          let notificationCount = 0;
+          let notificationErrors = [];
+          
+          // Fetch all created participants with their details and marathon
+          const participants = await Participant.findAll({
+            where: { Id: { [Op.in]: createdParticipantIds } },
+            include: [
+              { model: ParticipantDetails, as: 'ParticipantDetails', required: true },
+              { model: Marathon, as: 'Marathon', required: true }
+            ]
+          });
+          
+          // Send notifications for each participant in batches to avoid overwhelming the system
+          const batchSize = 10; // Process 10 participants at a time
+          for (let i = 0; i < participants.length; i += batchSize) {
+            const batch = participants.slice(i, i + batchSize);
+            
+            // Process batch in parallel
+            await Promise.allSettled(
+              batch.map(async (participant) => {
+                if (participant.ParticipantDetails && participant.Marathon) {
+                  const participantData = {
+                    Full_Name: participant.ParticipantDetails.Full_Name,
+                    BIB_Number: participant.BIB_Number,
+                    Marathon: participant.Marathon,
+                    Tshirt_Size: participant.ParticipantDetails.Tshirt_Size
+                  };
+                  
+                  let emailSent = false;
+                  let whatsappSent = false;
+                  
+                  // Send email
+                  try {
+                    emailSent = await emailService.sendTicketEmail(
+                      participant.ParticipantDetails.Email,
+                      participantData
+                    );
+                  } catch (emailError) {
+                    logger.error(`Failed to send email to ${participant.ParticipantDetails.Email} (Participant ID: ${participant.Id}):`, emailError);
+                    notificationErrors.push({
+                      participantId: participant.Id,
+                      email: participant.ParticipantDetails.Email,
+                      error: 'Email sending failed',
+                      details: emailError.message
+                    });
+                  }
+                  
+                  // Send WhatsApp
+                  try {
+                    whatsappSent = await whatsappService.sendTicketWhatsApp(
+                      participant.ParticipantDetails.Contact_Number,
+                      participantData
+                    );
+                  } catch (whatsappError) {
+                    logger.error(`Failed to send WhatsApp to ${participant.ParticipantDetails.Contact_Number} (Participant ID: ${participant.Id}):`, whatsappError);
+                    notificationErrors.push({
+                      participantId: participant.Id,
+                      mobileNo: participant.ParticipantDetails.Contact_Number,
+                      error: 'WhatsApp sending failed',
+                      details: whatsappError.message
+                    });
+                  }
+                  
+                  // Update Is_Notified flag if at least one notification was sent
+                  if (emailSent || whatsappSent) {
+                    try {
+                      participant.Is_Notified = true;
+                      await participant.save();
+                      notificationCount++;
+                      logger.info(`Notifications sent and Is_Notified set to true for participant ${participant.Id}`);
+                    } catch (updateError) {
+                      logger.error(`Failed to update Is_Notified for participant ${participant.Id}:`, updateError);
+                    }
+                  }
+                }
+              })
+            );
+            
+            // Small delay between batches to avoid overwhelming the system
+            if (i + batchSize < participants.length) {
+              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+            }
+          }
+          
+          if (notificationCount > 0) {
+            logger.info(`Notifications sent for ${notificationCount} participant(s) after Excel import`);
+          }
+          
+          if (notificationErrors.length > 0) {
+            logger.warn(`Failed to send notifications for ${notificationErrors.length} participant(s)`);
+          }
+        } catch (error) {
+          logger.error('Error sending notifications in background:', error);
+        }
+      });
+    }
+    
     // Clean up uploaded file
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-    }
-    
-    logger.info(`Excel import successful: ${resultData.length} participant(s) imported`);
-    
-    // Send notifications for all imported participants
-    let notificationCount = 0;
-    let notificationErrors = [];
-    
-    if (createdParticipantIds.length > 0) {
-      // Fetch all created participants with their details and marathon
-      const participants = await Participant.findAll({
-        where: { Id: { [Op.in]: createdParticipantIds } },
-        include: [
-          { model: ParticipantDetails, as: 'ParticipantDetails', required: true },
-          { model: Marathon, as: 'Marathon', required: true }
-        ]
-      });
-      
-      // Send notifications for each participant
-      for (const participant of participants) {
-        if (participant.ParticipantDetails && participant.Marathon) {
-          const participantData = {
-            Full_Name: participant.ParticipantDetails.Full_Name,
-            BIB_Number: participant.BIB_Number,
-            Marathon: participant.Marathon,
-            Tshirt_Size: participant.ParticipantDetails.Tshirt_Size
-          };
-          
-          let emailSent = false;
-          let whatsappSent = false;
-          
-          // Send email
-          try {
-            emailSent = await emailService.sendTicketEmail(
-              participant.ParticipantDetails.Email,
-              participantData
-            );
-          } catch (emailError) {
-            logger.error(`Failed to send email to ${participant.ParticipantDetails.Email} (Participant ID: ${participant.Id}):`, emailError);
-            notificationErrors.push({
-              participantId: participant.Id,
-              email: participant.ParticipantDetails.Email,
-              error: 'Email sending failed',
-              details: emailError.message
-            });
-          }
-          
-          // Send WhatsApp
-          try {
-            whatsappSent = await whatsappService.sendTicketWhatsApp(
-              participant.ParticipantDetails.Contact_Number,
-              participantData
-            );
-          } catch (whatsappError) {
-            logger.error(`Failed to send WhatsApp to ${participant.ParticipantDetails.Contact_Number} (Participant ID: ${participant.Id}):`, whatsappError);
-            notificationErrors.push({
-              participantId: participant.Id,
-              mobileNo: participant.ParticipantDetails.Contact_Number,
-              error: 'WhatsApp sending failed',
-              details: whatsappError.message
-            });
-          }
-          
-          // Update Is_Notified flag if at least one notification was sent
-          if (emailSent || whatsappSent) {
-            try {
-              participant.Is_Notified = true;
-              await participant.save();
-              notificationCount++;
-              logger.info(`Notifications sent and Is_Notified set to true for participant ${participant.Id}`);
-            } catch (updateError) {
-              logger.error(`Failed to update Is_Notified for participant ${participant.Id}:`, updateError);
-            }
-          }
-        }
-      }
-      
-      if (notificationCount > 0) {
-        logger.info(`Notifications sent for ${notificationCount} participant(s) after Excel import`);
-      }
-      
-      if (notificationErrors.length > 0) {
-        logger.warn(`Failed to send notifications for ${notificationErrors.length} participant(s)`);
-      }
     }
     
     return {
       success: true,
       data: resultData,
       count: resultData.length,
-      message: `Successfully imported ${resultData.length} participant(s)`,
-      notificationsSent: notificationCount,
-      notificationErrors: notificationErrors.length > 0 ? notificationErrors : undefined
+      message: `Successfully imported ${resultData.length} participant(s). Notifications are being sent in the background.`
     };
   } catch (error) {
     await transaction.rollback();
