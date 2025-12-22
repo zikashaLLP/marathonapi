@@ -199,6 +199,7 @@ const getParticipantsWithPaymentDetails = async (paymentStatus = 'all') => {
       
       return {
         'Sr.No': index + 1,
+        'BIB Number': participant.BIB_Number || '',
         'Name': participant.ParticipantDetails?.Full_Name || '',
         'Email': participant.ParticipantDetails?.Email || '',
         'Mobile No': participant.ParticipantDetails?.Contact_Number || '',
@@ -210,6 +211,28 @@ const getParticipantsWithPaymentDetails = async (paymentStatus = 'all') => {
         'Payment Status': participant.Is_Payment_Completed ? 'Completed' : 'Pending',
         'Payment Date': successfulPayment ? successfulPayment.Updated_At : null
       };
+    });
+    
+    // Sort by BIB Number (handle numeric BIB numbers like "0001", "0002" correctly)
+    formattedParticipants.sort((a, b) => {
+      const bibA = a['BIB Number'] || '';
+      const bibB = b['BIB Number'] || '';
+      
+      // If both are numeric strings, compare as numbers
+      const numA = parseInt(bibA);
+      const numB = parseInt(bibB);
+      
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+      
+      // Otherwise, compare as strings
+      return bibA.localeCompare(bibB);
+    });
+    
+    // Update Sr.No after sorting
+    formattedParticipants.forEach((participant, index) => {
+      participant['Sr.No'] = index + 1;
     });
     
     return formattedParticipants;
@@ -319,10 +342,32 @@ const getParticipantStatisticsByGroup = async (gender = 'All', minAge = null, ma
         'Pincode': participant.ParticipantDetails?.Pincode || '',
         'T-shirt Size': participant.ParticipantDetails?.Tshirt_Size || '',
         'Birth Date': participant.ParticipantDetails?.Date_of_Birth || '',
-        'Amount': successfulPayment.Amount || '',
+        'Amount': successfulPayment ? successfulPayment.Amount || '' : '',
         'Payment Status': participant.Is_Payment_Completed ? 'Completed' : 'Pending',
         'Payment Date': successfulPayment ? successfulPayment.Updated_At : null
       };
+    });
+    
+    // Sort by BIB Number (handle numeric BIB numbers like "0001", "0002" correctly)
+    formattedParticipants.sort((a, b) => {
+      const bibA = a['BIB Number'] || '';
+      const bibB = b['BIB Number'] || '';
+      
+      // If both are numeric strings, compare as numbers
+      const numA = parseInt(bibA);
+      const numB = parseInt(bibB);
+      
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numA - numB;
+      }
+      
+      // Otherwise, compare as strings
+      return bibA.localeCompare(bibB);
+    });
+    
+    // Update Sr.No after sorting
+    formattedParticipants.forEach((participant, index) => {
+      participant['Sr.No'] = index + 1;
     });
     
     return formattedParticipants;
